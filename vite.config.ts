@@ -2,7 +2,7 @@ import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vite'
 import tailwindcss from '@tailwindcss/vite'
-import vue from '@vitejs/plugin-vue'
+import react from '@vitejs/plugin-react'
 import electron from 'vite-plugin-electron'
 import renderer from 'vite-plugin-electron-renderer'
 
@@ -11,7 +11,7 @@ const rootDir = dirname(fileURLToPath(import.meta.url))
 export default defineConfig({
   plugins: [
     tailwindcss(),
-    vue(),
+    react(),
     electron([
       {
         entry: 'electron/main/index.ts',

@@ -1,33 +1,10 @@
 /// <reference types="vite/client" />
 
-type NoteListItem = {
-  basename: string
-  title: string
-  preview: string
-  updatedAt: string
-  size: number
-}
-
-type NotePayload = {
-  basename: string
-  title: string
-  content: string
-  updatedAt: string
-}
-
-type AppSettings = {
-  notesDir: string | null
-  notes: NoteListItem[]
-}
-
-type SaveNoteResult = {
-  note: NotePayload
-  notes: NoteListItem[]
-}
+import type { AppSettings, NoteListItem, NotePayload, SaveNoteResult } from '@/lib/types'
 
 declare global {
   interface Window {
-    notesApi: {
+    notesApi?: {
       getSettings: () => Promise<AppSettings>
       chooseDirectory: () => Promise<AppSettings | null>
       listNotes: () => Promise<NoteListItem[]>
