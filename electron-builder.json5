@@ -1,0 +1,17 @@
+{
+  appId: 'com.codex.note',
+  productName: 'Codex Note',
+  directories: {
+    output: 'release/${version}'
+  },
+  files: ['dist/**/*', 'dist-electron/**/*', 'package.json'],
+  mac: {
+    target: ['dmg']
+  },
+  win: {
+    target: ['nsis']
+  },
+  linux: {
+    target: ['AppImage']
+  }
+}
