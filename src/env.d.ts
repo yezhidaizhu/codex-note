@@ -11,6 +11,9 @@ declare global {
       readNote: (basename: string) => Promise<NotePayload>
       saveNote: (payload: { currentBasename?: string | null; title: string; content: string }) => Promise<SaveNoteResult>
       deleteNote: (basename: string) => Promise<NoteListItem[]>
+      setSidebarCollapsed: (collapsed: boolean) => Promise<void>
+      getWindowState: () => Promise<{ isAlwaysOnTop: boolean }>
+      setAlwaysOnTop: (pinned: boolean) => Promise<{ isAlwaysOnTop: boolean }>
     }
   }
 }

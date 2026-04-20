@@ -11,7 +11,7 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   color-scheme: dark;
-  --background: #050816;
+  --background: rgba(5, 8, 22, 0.1);
   --foreground: #f8fafc;
   --card: #0b1120;
   --card-foreground: #f8fafc;
@@ -27,8 +27,8 @@
   --accent-foreground: #f8fafc;
   --destructive: #ef4444;
   --destructive-foreground: #f8fafc;
-  --border: #20293a;
-  --input: #20293a;
+  --border: #2a2638;
+  --input: #2f3d55;
   --ring: #fb923c;
   --radius: 0.875rem;
   --space-1: 0.25rem;
@@ -37,6 +37,10 @@
   --space-4: 1rem;
   --space-5: 1.25rem;
   --space-6: 1.5rem;
+  --text-2xs: 0.625rem;
+  --text-xs: 0.75rem;
+  --text-sm: 0.8125rem;
+  --text-md: 0.875rem;
   --sidebar: #070d1b;
   --editor: #0a101d;
   --primary-glow: rgba(249, 115, 22, 0.16);
@@ -62,11 +66,9 @@ body,
 body {
   height: 100vh;
   overflow: hidden;
-  background:
-    radial-gradient(circle at top, var(--primary-glow), transparent 26%),
-    radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.05), transparent 18%),
-    var(--background);
+  background: #050816;
   color: var(--foreground);
+  background-color: #050816;
 }
 
 ::selection {
@@ -88,11 +90,17 @@ button {
   height: 100%;
 }
 
-.surface-grid {
-  background-image:
-    linear-gradient(to right, var(--grid-color) 1px, transparent 1px),
-    linear-gradient(to bottom, var(--grid-color) 1px, transparent 1px);
-  background-size: 28px 28px;
+.app-shell-surface {
+  background: color-mix(in srgb, var(--background) 100%, transparent);
+}
+
+.app-shell-glass {
+  backdrop-filter: blur(20px) saturate(125%);
+  -webkit-backdrop-filter: blur(20px) saturate(125%);
+}
+
+.editor-surface {
+  background: rgba(5, 8, 22, 0.02);
 }
 
 .panel-shadow {
@@ -117,6 +125,22 @@ button {
   gap: var(--space-2);
 }
 
+.text-ui-2xs {
+  font-size: var(--text-2xs);
+}
+
+.text-ui-xs {
+  font-size: var(--text-xs);
+}
+
+.text-ui-sm {
+  font-size: var(--text-sm);
+}
+
+.text-ui-md {
+  font-size: var(--text-md);
+}
+
 .scrollbar-thin {
   scrollbar-width: thin;
   scrollbar-color: var(--scroll-thumb-firefox) transparent;
@@ -135,7 +159,6 @@ button {
 .scrollbar-thin::-webkit-scrollbar-track {
   background: transparent;
 }
-
 
 .drag-region {
   -webkit-app-region: drag;

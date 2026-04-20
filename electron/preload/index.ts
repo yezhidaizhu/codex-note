@@ -7,7 +7,10 @@ const api = {
   readNote: (basename: string) => ipcRenderer.invoke('notes:read', basename),
   saveNote: (payload: { currentBasename?: string | null; title: string; content: string }) =>
     ipcRenderer.invoke('notes:save', payload),
-  deleteNote: (basename: string) => ipcRenderer.invoke('notes:delete', basename)
+  deleteNote: (basename: string) => ipcRenderer.invoke('notes:delete', basename),
+  setSidebarCollapsed: (collapsed: boolean) => ipcRenderer.invoke('window:set-sidebar-collapsed', collapsed),
+  getWindowState: () => ipcRenderer.invoke('window:get-state'),
+  setAlwaysOnTop: (pinned: boolean) => ipcRenderer.invoke('window:set-always-on-top', pinned)
 }
 
 contextBridge.exposeInMainWorld('notesApi', api)
