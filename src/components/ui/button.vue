@@ -1,4 +1,5 @@
-import * as React from 'react'
+<script setup lang="ts">
+import { computed, useAttrs } from 'vue'
 import { cva, type VariantProps } from 'class-variance-authority'
 import { cn } from '@/lib/utils'
 
@@ -14,26 +15,49 @@ const buttonVariants = cva(
         ghost:
           'text-[var(--muted-foreground)] hover:bg-[color-mix(in_srgb,var(--accent)_72%,transparent)] hover:text-[var(--foreground)]',
         outline:
-          'border border-[color-mix(in_srgb,var(--border)_90%,transparent)] bg-transparent text-[var(--foreground)] hover:bg-[color-mix(in_srgb,var(--accent)_72%,transparent)]'
+          'border border-[color-mix(in_srgb,var(--border)_90%,transparent)] bg-transparent text-[var(--foreground)] hover:bg-[color-mix(in_srgb,var(--accent)_72%,transparent)]',
       },
       size: {
         default: 'h-8 px-3 py-1.5',
         sm: 'h-7 px-2.5 text-xs',
-        icon: 'h-8 w-8'
-      }
+        icon: 'h-8 w-8',
+      },
     },
     defaultVariants: {
       variant: 'default',
-      size: 'default'
-    }
-  }
+      size: 'default',
+    },
+  },
 )
 
-export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement>, VariantProps<typeof buttonVariants> {}
+type ButtonVariantProps = VariantProps<typeof buttonVariants>
 
-const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(({ className, variant, size, ...props }, ref) => {
-  return <button ref={ref} className={cn(buttonVariants({ variant, size }), className)} {...props} />
+const props = withDefaults(
+  defineProps<{
+    variant?: ButtonVariantProps['variant']
+    size?: ButtonVariantProps['size']
+  }>(),
+  {
+    variant: 'default',
+    size: 'default',
+  },
+)
+
+const attrs = useAttrs()
+
+const attrsWithoutClass = computed(() => {
+  const { class: _class, ...rest } = attrs as Record<string, unknown>
+  return rest
 })
-Button.displayName = 'Button'
 
-export { Button, buttonVariants }
+const mergedClass = computed(() =>
+  cn(buttonVariants({ variant: props.variant, size: props.size }), (attrs as any).class),
+)
+</script>
+
+<template>
+  <button v-bind="attrsWithoutClass" :class="mergedClass">
+    <slot />
+  </button>
+</template>
+
