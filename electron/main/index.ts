@@ -25,6 +25,7 @@ type NotePayload = {
 const NOTE_TITLE_MAX_LENGTH = 36
 const EXPANDED_MIN_WIDTH = 600
 const COLLAPSED_MIN_WIDTH = 300
+const DEFAULT_COLLAPSED_WIDTH = 380
 
 const defaultSettings: StoredSettings = {
   notesDir: null
@@ -33,7 +34,7 @@ const defaultSettings: StoredSettings = {
 let mainWindow: BrowserWindow | null = null
 let sidebarCollapsed = false
 let expandedSize = { width: 1400, height: 920 }
-let collapsedSize = { width: COLLAPSED_MIN_WIDTH, height: 920 }
+let collapsedSize = { width: DEFAULT_COLLAPSED_WIDTH, height: 920 }
 const currentDir = dirname(fileURLToPath(import.meta.url))
 
 function createWindow(): void {
@@ -61,27 +62,26 @@ function createWindow(): void {
     height: Math.max(initialHeight, 200)
   }
   collapsedSize = {
-    width: Math.max(COLLAPSED_MIN_WIDTH, Math.min(initialWidth, expandedSize.width)),
+    width: Math.max(COLLAPSED_MIN_WIDTH, Math.min(DEFAULT_COLLAPSED_WIDTH, expandedSize.width)),
     height: expandedSize.height
   }
 
-  mainWindow.on('resize', () => {
+  mainWindow.on('will-resize', (_event, newBounds) => {
     if (!mainWindow || mainWindow.isDestroyed()) {
       return
     }
 
-    const [width, height] = mainWindow.getSize()
     if (sidebarCollapsed) {
       collapsedSize = {
-        width: Math.max(width, COLLAPSED_MIN_WIDTH),
-        height
+        width: Math.max(newBounds.width, COLLAPSED_MIN_WIDTH),
+        height: newBounds.height
       }
       return
     }
 
     expandedSize = {
-      width: Math.max(width, EXPANDED_MIN_WIDTH),
-      height
+      width: Math.max(newBounds.width, EXPANDED_MIN_WIDTH),
+      height: newBounds.height
     }
   })
 

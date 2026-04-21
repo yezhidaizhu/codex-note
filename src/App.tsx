@@ -557,7 +557,7 @@ export default function App() {
 
   return (
     <div
-      className="app-shell-glass app-shell-surface flex h-full flex-col overflow-hidden bg-transparent text-[var(--foreground)] border !border-gray-800 rounded-xl "
+      className="app-shell-glass app-shell-surface flex h-full flex-col overflow-hidden bg-transparent text-[var(--foreground)] border !border-gray-600 rounded-xl "
       onContextMenu={(event) => {
         if (
           !(event.target instanceof HTMLElement) ||
@@ -600,7 +600,7 @@ export default function App() {
           >
             <Plus
               className={[
-                "h-3 w-3 transition-opacity duration-200",
+                " size-3.5 ",
                 sidebarCollapsed ? "opacity-100" : "opacity-0",
               ].join(" ")}
             />
@@ -620,7 +620,7 @@ export default function App() {
           >
             <Pin
               className={[
-                "h-3.5 w-3.5 transition-transform duration-200",
+                " size-3.5 ",
                 isPinned ? "rotate-0" : "rotate-45",
               ].join(" ")}
             />

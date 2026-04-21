@@ -27,7 +27,7 @@
   --accent-foreground: #f8fafc;
   --destructive: #ef4444;
   --destructive-foreground: #f8fafc;
-  --border: #2a2638;
+  --border: #373344;
   --input: #2f3d55;
   --ring: #fb923c;
   --radius: 0.875rem;
@@ -66,9 +66,9 @@ body,
 body {
   height: 100vh;
   overflow: hidden;
-  background: #050816;
+  background: #2A2A2A;
   color: var(--foreground);
-  background-color: #050816;
+  background-color: #2A2A2A;
 }
 
 ::selection {
