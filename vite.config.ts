@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vite'
 import tailwindcss from '@tailwindcss/vite'
 import vue from '@vitejs/plugin-vue'
+import Pages from 'vite-plugin-pages'
 import electron from 'vite-plugin-electron'
 import renderer from 'vite-plugin-electron-renderer'
 
@@ -12,6 +13,9 @@ export default defineConfig({
   plugins: [
     tailwindcss(),
     vue(),
+    Pages({
+      dirs: 'src/pages'
+    }),
     electron([
       {
         entry: 'electron/main/index.ts',
