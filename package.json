@@ -5,7 +5,7 @@
   "description": "Local markdown note app built with Electron, Vite, React, and shadcn-style UI.",
   "main": "dist-electron/main/index.js",
   "type": "module",
-  "author": "coco note",
+  "author": "Coco Note",
   "scripts": {
     "dev": "vite",
     "dev:electron": "vite",

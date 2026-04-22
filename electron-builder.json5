@@ -1,6 +1,6 @@
 {
   appId: 'com.coco.note',
-  productName: 'coco note',
+  productName: 'Coco Note',
   directories: {
     output: 'release/${version}'
   },
