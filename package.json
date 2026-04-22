@@ -1,11 +1,11 @@
 {
-  "name": "codex-note",
+  "name": "coco-note",
   "version": "0.1.0",
   "private": true,
   "description": "Local markdown note app built with Electron, Vite, React, and shadcn-style UI.",
   "main": "dist-electron/main/index.js",
   "type": "module",
-  "author": "Codex",
+  "author": "coco note",
   "scripts": {
     "dev": "vite",
     "dev:electron": "vite",

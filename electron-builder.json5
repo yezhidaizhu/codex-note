@@ -1,17 +1,19 @@
 {
-  appId: 'com.codex.note',
-  productName: 'Codex Note',
+  appId: 'com.coco.note',
+  productName: 'coco note',
   directories: {
     output: 'release/${version}'
   },
-  files: ['dist/**/*', 'dist-electron/**/*', 'package.json'],
+  files: ['dist/**/*', 'dist-electron/**/*', 'resources/icon.png', 'package.json'],
   mac: {
+    icon: 'resources/icon.icns',
     target: ['dmg']
   },
   win: {
     target: ['nsis']
   },
   linux: {
+    icon: 'resources/icon.png',
     target: ['AppImage']
   }
 }

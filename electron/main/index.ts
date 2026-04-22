@@ -1,7 +1,7 @@
 import { mkdir, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/promises'
 import { basename, dirname, extname, join, parse } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { app, BrowserWindow, dialog, ipcMain, nativeTheme } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, nativeImage, nativeTheme } from 'electron'
 
 type StoredSettings = {
   notesDir: string | null
@@ -49,6 +49,7 @@ function createWindow(): void {
     backgroundColor: '#00000000',
     vibrancy: nativeTheme.prefersReducedTransparency ? undefined : 'under-window',
     visualEffectState: nativeTheme.prefersReducedTransparency ? undefined : 'active',
+    icon: join(currentDir, '../../resources/icon.png'),
     webPreferences: {
       preload: join(currentDir, '../preload/index.js'),
       contextIsolation: true,
@@ -242,6 +243,13 @@ async function readNote(notesDir: string, noteBasename: string): Promise<NotePay
 }
 
 app.whenReady().then(() => {
+  if (process.platform === 'darwin' && process.env.VITE_DEV_SERVER_URL) {
+    const dockIcon = nativeImage.createFromPath(join(currentDir, '../../resources/icon.png'))
+    if (!dockIcon.isEmpty()) {
+      app.dock?.setIcon(dockIcon)
+    }
+  }
+
   createWindow()
 
   app.on('activate', () => {
