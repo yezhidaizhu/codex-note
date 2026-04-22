@@ -4,7 +4,14 @@
   directories: {
     output: 'release/${version}'
   },
-  files: ['dist/**/*', 'dist-electron/**/*', 'resources/icon.png', 'package.json'],
+  files: [
+    'dist/**/*',
+    'dist-electron/**/*',
+    'resources/icon.png',
+    'resources/trayTemplate.png',
+    'resources/trayTemplate@2x.png',
+    'package.json'
+  ],
   mac: {
     icon: 'resources/icon.icns',
     target: ['dmg']

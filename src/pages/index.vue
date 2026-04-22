@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref, watch } from 'vue'
+import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { FolderOpen, Plus } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
 import DeleteNoteDialog from '@/components/delete-note-dialog.vue'
@@ -33,6 +33,8 @@ const isBatchSelecting = ref(false)
 const selectedBasenames = ref<string[]>([])
 const isSidebarResizing = ref(false)
 const sidebarResizeStart = ref<{ pointerX: number; width: number } | null>(null)
+const pendingEditorFocus = ref(false)
+const editorTextarea = ref<{ focus: () => void; setSelectionRange: (start: number, end: number) => void } | null>(null)
 
 function handleShellContextMenu(event: MouseEvent) {
   const target = event.target
@@ -143,10 +145,27 @@ watch(isSidebarResizing, (resizing, _prev, onCleanup) => {
   onCleanup(stopResize)
 })
 
+watch(
+  () => store.activeNote.value,
+  async (note) => {
+    if (!note || !pendingEditorFocus.value) return
+    await nextTick()
+    editorTextarea.value?.focus()
+    const cursorPosition = note.content.length
+    editorTextarea.value?.setSelectionRange(cursorPosition, cursorPosition)
+    pendingEditorFocus.value = false
+  },
+)
+
 function onEditorInput(event: Event) {
   if (!store.activeNote.value) return
   const target = event.target as HTMLTextAreaElement | null
   store.activeNote.value = { ...store.activeNote.value, content: target?.value ?? '' }
+}
+
+function createNoteAndFocus() {
+  pendingEditorFocus.value = true
+  store.createNote()
 }
 
 const onSaveHotkey = (event: KeyboardEvent) => {
@@ -171,7 +190,7 @@ onUnmounted(() => window.removeEventListener('keydown', onSaveHotkey))
       :notes-dir="store.notesDir.value"
       :is-pinned="store.isPinned.value"
       @toggleSidebar="store.sidebarCollapsed.value = !store.sidebarCollapsed.value"
-      @createNote="store.createNote"
+      @createNote="createNoteAndFocus"
       @togglePinned="store.togglePinned"
     />
 
@@ -189,7 +208,7 @@ onUnmounted(() => window.removeEventListener('keydown', onSaveHotkey))
         :selected-basenames="selectedBasenames"
         :list-actions-menu-open="listActionsMenuOpen"
         @update:query="store.query.value = $event"
-        @createNote="store.createNote"
+        @createNote="createNoteAndFocus"
         @openNote="store.openNote($event)"
         @toggleListActionsMenu="listActionsMenuOpen = !listActionsMenuOpen"
         @toggleBatchSelect="toggleBatchSelect"
@@ -221,6 +240,7 @@ onUnmounted(() => window.removeEventListener('keydown', onSaveHotkey))
 
         <section v-else-if="store.activeNote.value" class="editor-surface flex min-h-0 flex-1 flex-col overflow-hidden">
           <Textarea
+            ref="editorTextarea"
             :value="store.activeNote.value.content"
             class="scrollbar-thin h-full min-h-0 flex-1 resize-none rounded-none border-0 bg-transparent px-[var(--space-5)] py-[var(--space-5)] text-[15px] leading-8 shadow-none focus-visible:ring-0 placeholder:text-[color-mix(in_srgb,var(--muted-foreground)_52%,transparent)]"
             placeholder="写点什么"
@@ -237,7 +257,7 @@ onUnmounted(() => window.removeEventListener('keydown', onSaveHotkey))
             <p class="text-ui-md mt-[var(--space-4)] leading-7 text-[var(--muted-foreground)]">
               左侧读取所选目录里的 `.md` 文件，右侧直接编辑原始 Markdown 文本。
             </p>
-            <Button class="mt-[var(--space-5)] gap-[var(--space-2)]" @click="store.createNote">
+            <Button class="mt-[var(--space-5)] gap-[var(--space-2)]" @click="createNoteAndFocus">
               <Plus class="h-4 w-4" />
               新建笔记
             </Button>

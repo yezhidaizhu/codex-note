@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed, useAttrs } from 'vue'
+import { computed, ref, useAttrs } from 'vue'
 import { cn } from '@/lib/utils'
 
 const attrs = useAttrs()
+const textareaElement = ref<HTMLTextAreaElement | null>(null)
 
 const attrsWithoutClass = computed(() => {
   const { class: _class, ...rest } = attrs as Record<string, unknown>
@@ -15,9 +16,13 @@ const mergedClass = computed(() =>
     (attrs as any).class,
   ),
 )
+
+defineExpose({
+  focus: () => textareaElement.value?.focus(),
+  setSelectionRange: (start: number, end: number) => textareaElement.value?.setSelectionRange(start, end),
+})
 </script>
 
 <template>
-  <textarea v-bind="attrsWithoutClass" :class="mergedClass" />
+  <textarea ref="textareaElement" v-bind="attrsWithoutClass" :class="mergedClass" />
 </template>
-

@@ -1,7 +1,7 @@
 import { mkdir, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/promises'
 import { basename, dirname, extname, join, parse } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { app, BrowserWindow, dialog, ipcMain, nativeImage, nativeTheme } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, nativeTheme, Tray } from 'electron'
 
 type StoredSettings = {
   notesDir: string | null
@@ -32,10 +32,79 @@ const defaultSettings: StoredSettings = {
 }
 
 let mainWindow: BrowserWindow | null = null
+let tray: Tray | null = null
+let isQuitting = false
 let sidebarCollapsed = false
 let expandedSize = { width: 1400, height: 920 }
 let collapsedSize = { width: DEFAULT_COLLAPSED_WIDTH, height: 920 }
 const currentDir = dirname(fileURLToPath(import.meta.url))
+const appIconPath = join(currentDir, '../../resources/icon.png')
+const trayTemplateIconPath = join(currentDir, '../../resources/trayTemplate.png')
+const trayTemplateIcon2xPath = join(currentDir, '../../resources/trayTemplate@2x.png')
+
+function restoreWindow(): void {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    createWindow()
+    return
+  }
+
+  if (!mainWindow.isVisible()) {
+    mainWindow.show()
+  }
+  if (mainWindow.isMinimized()) {
+    mainWindow.restore()
+  }
+  mainWindow.focus()
+}
+
+function createTray(): void {
+  if (tray) {
+    return
+  }
+
+  const trayIcon = process.platform === 'darwin'
+    ? nativeImage.createFromPath(trayTemplateIconPath)
+    : nativeImage.createFromPath(appIconPath)
+
+  if (process.platform === 'darwin') {
+    const trayIcon2x = nativeImage.createFromPath(trayTemplateIcon2xPath)
+    if (!trayIcon2x.isEmpty()) {
+      trayIcon.addRepresentation({
+        scaleFactor: 2,
+        width: trayIcon2x.getSize().width,
+        height: trayIcon2x.getSize().height,
+        buffer: trayIcon2x.toPNG()
+      })
+    }
+    trayIcon.setTemplateImage(true)
+  }
+
+  tray = new Tray(trayIcon)
+  tray.setToolTip('Coco Note')
+
+  const trayMenu = Menu.buildFromTemplate([
+    {
+      label: '显示窗口',
+      click: () => restoreWindow()
+    },
+    {
+      type: 'separator'
+    },
+    {
+      label: '退出',
+      click: () => {
+        isQuitting = true
+        app.quit()
+      }
+    }
+  ])
+
+  // NOTE:
+  // - `tray.setContextMenu(...)` may show the menu on left click on some platforms (notably macOS).
+  // - We want: left click restores window, right click shows menu.
+  tray.on('click', () => restoreWindow())
+  tray.on('right-click', () => tray?.popUpContextMenu(trayMenu))
+}
 
 function createWindow(): void {
   mainWindow = new BrowserWindow({
@@ -49,7 +118,7 @@ function createWindow(): void {
     backgroundColor: '#00000000',
     vibrancy: nativeTheme.prefersReducedTransparency ? undefined : 'under-window',
     visualEffectState: nativeTheme.prefersReducedTransparency ? undefined : 'active',
-    icon: join(currentDir, '../../resources/icon.png'),
+    icon: appIconPath,
     webPreferences: {
       preload: join(currentDir, '../preload/index.js'),
       contextIsolation: true,
@@ -96,6 +165,15 @@ function createWindow(): void {
     }
 
     mainWindow.show()
+  })
+
+  mainWindow.on('close', (event) => {
+    if (isQuitting) {
+      return
+    }
+
+    event.preventDefault()
+    mainWindow?.hide()
   })
 
   if (process.env.VITE_DEV_SERVER_URL) {
@@ -243,13 +321,21 @@ async function readNote(notesDir: string, noteBasename: string): Promise<NotePay
 }
 
 app.whenReady().then(() => {
-  if (process.platform === 'darwin' && process.env.VITE_DEV_SERVER_URL) {
-    const dockIcon = nativeImage.createFromPath(join(currentDir, '../../resources/icon.png'))
-    if (!dockIcon.isEmpty()) {
-      app.dock?.setIcon(dockIcon)
+  app.on('before-quit', () => {
+    isQuitting = true
+  })
+
+  if (process.platform === 'darwin') {
+    if (process.env.VITE_DEV_SERVER_URL) {
+      const dockIcon = nativeImage.createFromPath(appIconPath)
+      if (!dockIcon.isEmpty()) {
+        app.dock?.setIcon(dockIcon)
+      }
     }
+    app.dock?.hide()
   }
 
+  createTray()
   createWindow()
 
   app.on('activate', () => {
@@ -260,7 +346,7 @@ app.whenReady().then(() => {
 })
 
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
+  if (process.platform !== 'darwin' && isQuitting) {
     app.quit()
   }
 })

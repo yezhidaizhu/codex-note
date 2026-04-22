@@ -10,6 +10,7 @@ const store = useNotesStore()
 
 const sections = [{ key: 'general', label: '通用' }] as const
 const activeSectionKey = 'general'
+const MAC_WINDOW_CONTROLS_GAP = 'pl-[78px]'
 
 const notesCount = computed(() => store.notes.value.length)
 const hasSelectedNote = computed(() => Boolean(store.selectedBasename.value))
@@ -19,7 +20,7 @@ const hasSelectedNote = computed(() => Boolean(store.selectedBasename.value))
   <div class="app-shell-glass app-shell-surface flex h-full overflow-hidden bg-transparent text-[var(--foreground)] border !border-gray-600 rounded-xl">
     <aside class="flex w-[280px] shrink-0 flex-col border-r border-[color-mix(in_srgb,white_8%,transparent)]">
       <div class="drag-region flex h-9 shrink-0 items-center justify-between border-b border-[color-mix(in_srgb,white_10%,transparent)] px-[var(--space-3)]">
-        <div class="no-drag flex items-center gap-2 text-[var(--muted-foreground)]">
+        <div :class="`no-drag flex items-center gap-2 text-[var(--muted-foreground)] ${MAC_WINDOW_CONTROLS_GAP}`">
           <Settings2 class="h-4 w-4" />
           <span class="text-ui-xs uppercase tracking-[0.26em]">Settings</span>
         </div>
@@ -91,4 +92,3 @@ const hasSelectedNote = computed(() => Boolean(store.selectedBasename.value))
     </main>
   </div>
 </template>
-
