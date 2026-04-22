@@ -12,7 +12,8 @@
     "dev:web": "vite --open",
     "build": "vue-tsc --noEmit && vite build",
     "preview": "vite preview",
-    "dist": "npm run build && electron-builder"
+    "dist": "npm run build && electron-builder",
+    "dist:unsigned": "npm run build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac dmg"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.2.2",
