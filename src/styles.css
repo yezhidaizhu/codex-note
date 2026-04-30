@@ -18,7 +18,7 @@
   --popover: #0b1120;
   --popover-foreground: #f8fafc;
   --primary: #f97316;
-  --primary-foreground: #1a0d04;
+  --primary-foreground: #fff7ed;
   --secondary: #151c2c;
   --secondary-foreground: #e5edf7;
   --muted: #151c2c;
@@ -53,12 +53,12 @@
   --sidebar-footer-pad-x: 0.5rem;
   --sidebar-footer-pad-y: 0.4rem;
   --sidebar-footer-stack-gap: 0.4rem;
-  --interactive-hover: rgba(93, 58, 35, 0.72);
-  --interactive-hover-strong: rgba(118, 74, 43, 0.88);
-  --interactive-selected: rgba(249, 115, 22, 0.18);
-  --interactive-selected-hover: rgba(249, 115, 22, 0.28);
+  --interactive-hover: rgba(249, 115, 22, 0.16);
+  --interactive-hover-strong: rgba(249, 115, 22, 0.24);
+  --interactive-selected: rgba(249, 115, 22, 0.38);
+  --interactive-selected-hover: rgba(249, 115, 22, 0.46);
   --interactive-icon-surface: rgba(255, 255, 255, 0.05);
-  --interactive-icon-surface-active: rgba(249, 115, 22, 0.22);
+  --interactive-icon-surface-active: rgba(249, 115, 22, 0.3);
   --sidebar-hover: var(--interactive-hover);
   --sidebar-hover-strong: var(--interactive-hover-strong);
   --sidebar-selected-hover: var(--interactive-selected-hover);

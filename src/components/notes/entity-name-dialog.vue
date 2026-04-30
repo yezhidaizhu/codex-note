@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import Button from '@/components/ui/button.vue'
 import Input from '@/components/ui/input.vue'
 
@@ -23,6 +23,29 @@ const emit = defineEmits<{
 }>()
 
 const nameValue = ref(props.initialValue)
+const inputRef = ref<InstanceType<typeof Input> | null>(null)
+
+function cancel() {
+  emit('cancel')
+}
+
+function handleWindowKeydown(event: KeyboardEvent) {
+  if (event.key === 'Escape') {
+    event.preventDefault()
+    cancel()
+  }
+}
+
+onMounted(async () => {
+  window.addEventListener('keydown', handleWindowKeydown)
+  await nextTick()
+  inputRef.value?.focus()
+  inputRef.value?.select()
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', handleWindowKeydown)
+})
 
 function onInput(event: Event) {
   nameValue.value = (event.target as HTMLInputElement).value
@@ -36,12 +59,16 @@ function confirm() {
 </script>
 
 <template>
-  <div class="fixed inset-0 z-50 flex items-center justify-center bg-[var(--overlay-backdrop)] p-[var(--space-4)] backdrop-blur-[2px]">
+  <div
+    class="fixed inset-0 z-50 flex items-center justify-center bg-[var(--overlay-backdrop)] p-[var(--space-4)] backdrop-blur-[2px]"
+    @click.self="cancel"
+  >
     <div
       class="w-full max-w-sm rounded-[var(--radius)] border border-[color-mix(in_srgb,var(--border)_84%,transparent)] bg-[color-mix(in_srgb,var(--editor)_94%,white_6%)] p-[var(--space-4)] shadow-[0_14px_36px_var(--dialog-shadow)]"
     >
       <p class="text-ui-md font-medium text-[var(--foreground)]">{{ title }}</p>
       <Input
+        ref="inputRef"
         :value="nameValue"
         class="mt-[var(--space-3)] focus-visible:ring-1 focus-visible:ring-offset-0"
         :placeholder="entityType === 'note' ? '输入文件名' : '输入目录名'"
@@ -49,7 +76,7 @@ function confirm() {
         @keydown.enter.prevent="confirm"
       />
       <div class="mt-[var(--space-4)] flex justify-end gap-[var(--space-2)]">
-        <Button variant="ghost" size="sm" class="text-ui-sm h-7 px-3 font-normal" @click="emit('cancel')">取消</Button>
+        <Button variant="ghost" size="sm" class="text-ui-sm h-7 px-3 font-normal" @click="cancel">取消</Button>
         <Button
           variant="secondary"
           size="sm"

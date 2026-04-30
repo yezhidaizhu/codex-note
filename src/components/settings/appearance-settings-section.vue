@@ -24,7 +24,7 @@ function iconForMode(mode: AppearanceMode) {
 </script>
 
 <template>
-  <section class="rounded-[var(--radius)] border border-[color-mix(in_srgb,var(--border)_88%,transparent)] bg-[color-mix(in_srgb,var(--card)_20%,transparent)] p-[var(--space-5)]">
+  <section>
     <div class="flex items-start gap-[var(--space-3)]">
       <span class="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[color-mix(in_srgb,var(--card)_65%,transparent)] text-[var(--primary)]">
         <Palette class="h-4 w-4" />
@@ -49,7 +49,7 @@ function iconForMode(mode: AppearanceMode) {
                 [
                   'rounded-[calc(var(--radius)-0.05rem)] border px-[var(--space-3)] py-[var(--space-3)] text-left transition',
                   appearance.mode === option.key
-                    ? 'border-[color-mix(in_srgb,var(--primary)_55%,transparent)] bg-[color-mix(in_srgb,var(--primary)_12%,transparent)]'
+                    ? 'border-[color-mix(in_srgb,var(--primary)_55%,transparent)] bg-[var(--interactive-selected)] hover:bg-[var(--interactive-selected-hover)]'
                     : 'border-[color-mix(in_srgb,var(--border)_82%,transparent)] bg-[color-mix(in_srgb,var(--card)_34%,transparent)] hover:bg-[var(--interactive-hover)]',
                 ].join(' ')
               "
@@ -78,7 +78,7 @@ function iconForMode(mode: AppearanceMode) {
                 [
                   'rounded-[calc(var(--radius)-0.05rem)] border px-[var(--space-3)] py-[var(--space-3)] text-left transition',
                   appearance.theme === option.key
-                    ? 'border-[color-mix(in_srgb,var(--primary)_55%,transparent)] bg-[color-mix(in_srgb,var(--primary)_12%,transparent)]'
+                    ? 'border-[color-mix(in_srgb,var(--primary)_55%,transparent)] bg-[var(--interactive-selected)] hover:bg-[var(--interactive-selected-hover)]'
                     : 'border-[color-mix(in_srgb,var(--border)_82%,transparent)] bg-[color-mix(in_srgb,var(--card)_34%,transparent)] hover:bg-[var(--interactive-hover)]',
                 ].join(' ')
               "
@@ -108,7 +108,7 @@ function iconForMode(mode: AppearanceMode) {
                 [
                   'rounded-[calc(var(--radius)-0.05rem)] border px-[var(--space-3)] py-[var(--space-3)] text-left transition',
                   appearance.transparentBackground
-                    ? 'border-[color-mix(in_srgb,var(--primary)_55%,transparent)] bg-[color-mix(in_srgb,var(--primary)_12%,transparent)]'
+                    ? 'border-[color-mix(in_srgb,var(--primary)_55%,transparent)] bg-[var(--interactive-selected)] hover:bg-[var(--interactive-selected-hover)]'
                     : 'border-[color-mix(in_srgb,var(--border)_82%,transparent)] bg-[color-mix(in_srgb,var(--card)_34%,transparent)] hover:bg-[var(--interactive-hover)]',
                 ].join(' ')
               "
@@ -123,7 +123,7 @@ function iconForMode(mode: AppearanceMode) {
                 [
                   'rounded-[calc(var(--radius)-0.05rem)] border px-[var(--space-3)] py-[var(--space-3)] text-left transition',
                   !appearance.transparentBackground
-                    ? 'border-[color-mix(in_srgb,var(--primary)_55%,transparent)] bg-[color-mix(in_srgb,var(--primary)_12%,transparent)]'
+                    ? 'border-[color-mix(in_srgb,var(--primary)_55%,transparent)] bg-[var(--interactive-selected)] hover:bg-[var(--interactive-selected-hover)]'
                     : 'border-[color-mix(in_srgb,var(--border)_82%,transparent)] bg-[color-mix(in_srgb,var(--card)_34%,transparent)] hover:bg-[var(--interactive-hover)]',
                 ].join(' ')
               "
@@ -149,7 +149,7 @@ function iconForMode(mode: AppearanceMode) {
                 [
                   'rounded-[calc(var(--radius)-0.05rem)] border px-[var(--space-3)] py-[var(--space-3)] text-left transition',
                   appearance.density === option.key
-                    ? 'border-[color-mix(in_srgb,var(--primary)_55%,transparent)] bg-[color-mix(in_srgb,var(--primary)_12%,transparent)]'
+                    ? 'border-[color-mix(in_srgb,var(--primary)_55%,transparent)] bg-[var(--interactive-selected)] hover:bg-[var(--interactive-selected-hover)]'
                     : 'border-[color-mix(in_srgb,var(--border)_82%,transparent)] bg-[color-mix(in_srgb,var(--card)_34%,transparent)] hover:bg-[var(--interactive-hover)]',
                 ].join(' ')
               "

@@ -84,7 +84,7 @@ function updateTransparentBackground(transparentBackground: boolean) {
             [
               'text-ui-sm flex w-full items-center rounded-[calc(var(--radius)-0.1rem)] px-3 py-2 text-left transition',
               section.key === activeSectionKey
-                ? 'bg-[color-mix(in_srgb,var(--primary)_12%,transparent)] text-[var(--foreground)]'
+                ? 'bg-[var(--interactive-selected)] text-[var(--foreground)] hover:bg-[var(--interactive-selected-hover)]'
                 : 'text-[var(--muted-foreground)] hover:bg-[var(--interactive-hover)] hover:text-[var(--foreground)]',
             ].join(' ')
           "

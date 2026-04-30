@@ -14,7 +14,7 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <section class="rounded-[var(--radius)] border border-[color-mix(in_srgb,var(--border)_88%,transparent)] bg-[color-mix(in_srgb,var(--card)_20%,transparent)] p-[var(--space-5)]">
+  <section>
     <div class="flex items-start justify-between gap-[var(--space-5)]">
       <div class="min-w-0">
         <p class="text-ui-md font-medium">笔记目录</p>

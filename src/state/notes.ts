@@ -36,17 +36,17 @@ const appearance = ref<AppearanceSettings>({
 const themePresets: Record<AppearanceTheme, { primary: string; primaryForeground: string; ring: string }> = {
   ember: {
     primary: '#f97316',
-    primaryForeground: '#1a0d04',
+    primaryForeground: '#fff7ed',
     ring: '#fb923c',
   },
   ocean: {
     primary: '#38bdf8',
-    primaryForeground: '#03131b',
+    primaryForeground: '#f8fdff',
     ring: '#7dd3fc',
   },
   forest: {
     primary: '#34d399',
-    primaryForeground: '#04120d',
+    primaryForeground: '#f3fffa',
     ring: '#6ee7b7',
   },
 }
@@ -141,9 +141,9 @@ function buildThemeTokens(mode: ResolvedAppearanceMode, theme: AppearanceTheme):
   const preset = themePresets[theme]
   const hoverAlpha = mode === 'dark' ? 0.16 : 0.1
   const hoverStrongAlpha = mode === 'dark' ? 0.24 : 0.16
-  const selectedAlpha = mode === 'dark' ? 0.22 : 0.14
-  const selectedHoverAlpha = mode === 'dark' ? 0.3 : 0.22
-  const iconActiveAlpha = mode === 'dark' ? 0.22 : 0.15
+  const selectedAlpha = mode === 'dark' ? 0.38 : 0.34
+  const selectedHoverAlpha = mode === 'dark' ? 0.46 : 0.42
+  const iconActiveAlpha = mode === 'dark' ? 0.3 : 0.28
   const glowAlpha = mode === 'dark' ? 0.18 : 0.14
   const buttonShadowAlpha = mode === 'dark' ? 0.24 : 0.18
 

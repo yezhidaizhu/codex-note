@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed, useAttrs } from 'vue'
+import { computed, ref, useAttrs } from 'vue'
 import { cn } from '@/lib/utils'
 
 const attrs = useAttrs()
+const inputElement = ref<HTMLInputElement | null>(null)
 
 const attrsWithoutClass = computed(() => {
   const { class: _class, ...rest } = attrs as Record<string, unknown>
@@ -15,9 +16,14 @@ const mergedClass = computed(() =>
     (attrs as any).class,
   ),
 )
+
+defineExpose({
+  focus: () => inputElement.value?.focus(),
+  select: () => inputElement.value?.select(),
+  el: inputElement,
+})
 </script>
 
 <template>
-  <input v-bind="attrsWithoutClass" :class="mergedClass" />
+  <input ref="inputElement" v-bind="attrsWithoutClass" :class="mergedClass" />
 </template>
-
