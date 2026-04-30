@@ -6,12 +6,13 @@ import { useRouter } from 'vue-router'
 import Button from '@/components/ui/button.vue'
 import AppearanceSettingsSection from '@/components/settings/appearance-settings-section.vue'
 import GeneralSettingsSection from '@/components/settings/general-settings-section.vue'
+import { usePanelResize } from '@/composables/use-panel-resize'
 import { useNotesStore } from '@/state/notes'
 import type { AppearanceDensity, AppearanceMode, AppearanceTheme } from '@/lib/types'
 
 const router = useRouter()
 const store = useNotesStore()
-const { notes, selectedPath, appearance, notesDir } = storeToRefs(store)
+const { notes, selectedPath, appearance, notesDir, sidebarWidth } = storeToRefs(store)
 
 const sections = [
   { key: 'general', label: '通用' },
@@ -19,6 +20,12 @@ const sections = [
 ] as const
 const activeSectionKey = ref<(typeof sections)[number]['key']>('general')
 const MAC_WINDOW_CONTROLS_GAP = 'pl-[78px]'
+const settingsSidebarCollapsed = computed(() => false)
+const { isResizing: isSettingsSidebarResizing, beginResize: beginSettingsSidebarResize } = usePanelResize(
+  sidebarWidth,
+  settingsSidebarCollapsed,
+  { minWidth: 220, maxWidth: 420 },
+)
 
 const notesCount = computed(() => notes.value.length)
 const hasSelectedNote = computed(() => Boolean(selectedPath.value))
@@ -60,29 +67,37 @@ function updateTransparentBackground(transparentBackground: boolean) {
 
 <template>
   <div class="app-shell-glass app-shell-surface flex h-full overflow-hidden rounded-xl border border-[var(--shell-border)] bg-transparent text-[var(--foreground)]">
-    <aside class="flex w-[280px] shrink-0 flex-col border-r border-[var(--separator)]">
-      <div class="drag-region flex h-9 shrink-0 items-center justify-between border-b border-[var(--separator)] px-[var(--space-3)]">
+    <aside
+      :class="['relative flex shrink-0 flex-col overflow-hidden', isSettingsSidebarResizing ? 'transition-none' : 'transition-[width] duration-300 ease-out'].join(' ')"
+      :style="{ width: `${sidebarWidth}px` }"
+    >
+      <div
+        :class="
+          [
+            'pointer-events-none absolute inset-y-0 right-0 z-10 w-px transition-[background-color,opacity] duration-200',
+            isSettingsSidebarResizing ? 'bg-[var(--primary)] opacity-80' : 'bg-[var(--separator)] opacity-55',
+          ].join(' ')
+        "
+        aria-hidden="true"
+      />
+
+      <div class="drag-region flex h-9 shrink-0 items-center justify-between px-[var(--space-3)]">
         <div :class="`no-drag flex items-center gap-2 text-[var(--muted-foreground)] ${MAC_WINDOW_CONTROLS_GAP}`">
           <Settings2 class="h-4 w-4" />
           <span class="text-ui-xs uppercase tracking-[0.26em]">Settings</span>
         </div>
       </div>
 
-      <div class="no-drag px-[var(--space-2)] py-[var(--space-3)]">
-        <Button variant="ghost" size="sm" class="text-ui-sm h-8 w-full justify-start gap-2 px-3" @click="router.push('/')">
-          <ChevronLeft class="h-4 w-4" />
-          返回编辑器
-        </Button>
-      </div>
-
       <nav class="no-drag px-[var(--space-2)] pb-[var(--space-3)]">
-        <button
+        <Button
           v-for="section in sections"
           :key="section.key"
+          variant="ghost"
+          size="sm"
           type="button"
           :class="
             [
-              'text-ui-sm flex w-full items-center rounded-[calc(var(--radius)-0.1rem)] px-3 py-2 text-left transition',
+              'text-ui-sm h-8 w-full justify-start px-3',
               section.key === activeSectionKey
                 ? 'bg-[var(--interactive-selected)] text-[var(--foreground)] hover:bg-[var(--interactive-selected-hover)]'
                 : 'text-[var(--muted-foreground)] hover:bg-[var(--interactive-hover)] hover:text-[var(--foreground)]',
@@ -91,17 +106,33 @@ function updateTransparentBackground(transparentBackground: boolean) {
           @click="activeSectionKey = section.key"
         >
           {{ section.label }}
-        </button>
+        </Button>
       </nav>
 
-      <div class="mt-auto border-t border-[color-mix(in_srgb,var(--border)_85%,transparent)] p-[var(--space-3)]">
-        <p class="text-ui-xs text-[var(--muted-foreground)]">{{ notesCount }} 篇笔记</p>
-        <p class="text-ui-xs text-[var(--muted-foreground)]">{{ hasSelectedNote ? '已打开文档' : '未打开文档' }}</p>
+      <div
+        class="mt-auto"
+        :style="{
+          paddingLeft: 'var(--sidebar-footer-pad-x)',
+          paddingRight: 'var(--sidebar-footer-pad-x)',
+          paddingTop: 'var(--sidebar-footer-pad-y)',
+          paddingBottom: 'var(--sidebar-footer-pad-y)',
+        }"
+      >
+        <Button variant="ghost" size="sm" class="text-ui-sm h-8 w-full justify-start gap-2 px-3" @click="router.push('/')">
+          <ChevronLeft class="h-4 w-4" />
+          返回编辑器
+        </Button>
       </div>
+
+      <div
+        class="absolute inset-y-0 right-[-4px] z-20 w-2 cursor-col-resize transition-opacity duration-200"
+        aria-hidden="true"
+        @mousedown="beginSettingsSidebarResize"
+      />
     </aside>
 
     <main class="flex min-w-0 flex-1 flex-col overflow-hidden">
-      <header class="drag-region flex shrink-0 items-start justify-between gap-[var(--settings-page-gap)] border-b border-[var(--separator)] p-[var(--settings-page-pad)]">
+      <header class="drag-region flex shrink-0 items-start justify-between gap-[var(--settings-page-gap)] p-[var(--settings-page-pad)]">
         <div>
           <template v-if="activeSection.key === 'general'">
             <p class="text-ui-xs uppercase tracking-[0.24em] text-[var(--muted-foreground)]">General</p>

@@ -19,7 +19,7 @@ const MAC_WINDOW_CONTROLS_GAP = 'pl-[78px]'
 
 <template>
   <div
-    class="drag-region flex h-9 shrink-0 items-center justify-between border-b border-[var(--separator)] px-[var(--space-3)] text-[var(--muted-foreground)]"
+    class="drag-region flex h-9 shrink-0 items-center justify-between px-[var(--space-3)] text-[var(--muted-foreground)]"
   >
     <div :class="`no-drag flex min-w-0 items-center gap-[var(--space-2)] ${MAC_WINDOW_CONTROLS_GAP}`">
       <Button

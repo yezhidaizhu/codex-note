@@ -49,13 +49,22 @@ function onQueryInput(event: Event) {
     :class="
       [
         'relative flex min-h-0 shrink-0 flex-col overflow-hidden bg-transparent',
-        isSidebarResizing ? 'transition-none' : 'transition-[width,border-color,opacity] duration-300 ease-out',
-        sidebarCollapsed ? 'border-r border-transparent opacity-0' : 'border-r border-[var(--separator)] opacity-100',
+        isSidebarResizing ? 'transition-none' : 'transition-[width,opacity] duration-300 ease-out',
+        sidebarCollapsed ? 'opacity-0' : 'opacity-100',
       ].join(' ')
     "
     :style="{ width: sidebarCollapsed ? '0px' : `${sidebarWidth}px` }"
     :aria-hidden="sidebarCollapsed"
   >
+    <div
+      :class="
+        [
+          'pointer-events-none absolute inset-y-0 right-0 z-10 w-px transition-[background-color,opacity] duration-200',
+          sidebarCollapsed ? 'opacity-0' : isSidebarResizing ? 'bg-[var(--primary)] opacity-80' : 'bg-[var(--separator)] opacity-55',
+        ].join(' ')
+      "
+      aria-hidden="true"
+    />
     <div
       :class="
         [
@@ -67,7 +76,7 @@ function onQueryInput(event: Event) {
       :style="{ width: `${sidebarWidth}px` }"
     >
       <div
-        class="flex flex-col border-b border-[color-mix(in_srgb,var(--border)_85%,transparent)]"
+        class="flex flex-col"
         :style="{
           paddingLeft: 'var(--sidebar-search-pad-x)',
           paddingRight: 'var(--sidebar-search-pad-x)',
@@ -168,7 +177,7 @@ function onQueryInput(event: Event) {
       />
 
       <div
-        class="mt-auto border-t border-[color-mix(in_srgb,var(--border)_85%,transparent)]"
+        class="mt-auto"
         :style="{
           paddingLeft: 'var(--sidebar-footer-pad-x)',
           paddingRight: 'var(--sidebar-footer-pad-x)',
@@ -202,10 +211,10 @@ function onQueryInput(event: Event) {
         <Button
           variant="ghost"
           size="sm"
-          class="text-ui-sm h-7 w-full justify-start gap-1.5 px-2 font-normal hover:bg-[var(--interactive-hover)] hover:text-[var(--foreground)]"
+          class="text-ui-sm h-8 w-full justify-start gap-2 px-3 font-normal hover:bg-[var(--interactive-hover)] hover:text-[var(--foreground)]"
           @click="emit('goSettings')"
         >
-          <Cog class="h-3.5 w-3.5" />
+          <Cog class="h-4 w-4" />
           设置
         </Button>
       </div>

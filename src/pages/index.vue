@@ -11,7 +11,7 @@ import Button from '@/components/ui/button.vue'
 import Textarea from '@/components/ui/textarea.vue'
 import { useIndexPageActions } from '@/composables/use-index-page-actions'
 import { useNoteEditor } from '@/composables/use-note-editor'
-import { useSidebarResize } from '@/composables/use-sidebar-resize'
+import { usePanelResize } from '@/composables/use-panel-resize'
 import { useNotesStore } from '@/state/notes'
 
 const router = useRouter()
@@ -58,7 +58,10 @@ const {
 } = useIndexPageActions(store)
 
 const noteEditor = useNoteEditor(store)
-const { isSidebarResizing, beginSidebarResize } = useSidebarResize(store)
+const { isResizing: isSidebarResizing, beginResize: beginSidebarResize } = usePanelResize(sidebarWidth, sidebarCollapsed, {
+  minWidth: 220,
+  maxWidth: 520,
+})
 </script>
 
 <template>
