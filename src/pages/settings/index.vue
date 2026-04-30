@@ -100,8 +100,8 @@ function updateTransparentBackground(transparentBackground: boolean) {
       </div>
     </aside>
 
-    <main class="no-drag flex min-w-0 flex-1 flex-col overflow-hidden">
-      <header class="flex shrink-0 items-start justify-between gap-[var(--space-5)] border-b border-[var(--separator)] p-[var(--space-5)]">
+    <main class="flex min-w-0 flex-1 flex-col overflow-hidden">
+      <header class="drag-region flex shrink-0 items-start justify-between gap-[var(--space-5)] border-b border-[var(--separator)] p-[var(--space-5)]">
         <div>
           <template v-if="activeSection.key === 'general'">
             <p class="text-ui-xs uppercase tracking-[0.24em] text-[var(--muted-foreground)]">General</p>
@@ -121,7 +121,7 @@ function updateTransparentBackground(transparentBackground: boolean) {
         </div>
       </header>
 
-      <div class="flex min-h-0 flex-1 flex-col gap-[var(--space-5)] overflow-y-auto p-[var(--space-5)]">
+      <div class="no-drag flex min-h-0 flex-1 flex-col gap-[var(--space-5)] overflow-y-auto p-[var(--space-5)]">
         <GeneralSettingsSection
           v-if="activeSection.key === 'general'"
           :notes-dir="notesDir"
