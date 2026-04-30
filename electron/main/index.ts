@@ -1,7 +1,7 @@
 import { mkdir, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/promises'
 import { basename, dirname, extname, join, parse, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, nativeTheme, Tray } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, nativeTheme, screen, Tray } from 'electron'
 
 type StoredSettings = {
   notesDir: string | null
@@ -59,6 +59,8 @@ const NOTE_TITLE_MAX_LENGTH = 36
 const EXPANDED_MIN_WIDTH = 600
 const COLLAPSED_MIN_WIDTH = 300
 const DEFAULT_COLLAPSED_WIDTH = 480
+const WINDOW_EDGE_SNAP_THRESHOLD = 24
+const MIN_VISIBLE_HEADER_HEIGHT = 88
 
 const defaultSettings: StoredSettings = {
   notesDir: null,
@@ -98,6 +100,63 @@ function restoreWindow(): void {
     mainWindow.restore()
   }
   mainWindow.focus()
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(Math.max(value, min), max)
+}
+
+function computeVisibleBounds(nextWidth: number, nextHeight: number): Electron.Rectangle | null {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    return null
+  }
+
+  const currentBounds = mainWindow.getBounds()
+  const display = screen.getDisplayMatching(currentBounds)
+  const workArea = display.workArea
+  const workAreaRight = workArea.x + workArea.width
+  const workAreaBottom = workArea.y + workArea.height
+  const currentRight = currentBounds.x + currentBounds.width
+  const currentBottom = currentBounds.y + currentBounds.height
+
+  let nextX = currentBounds.x
+  let nextY = currentBounds.y
+
+  const pinnedLeft = Math.abs(currentBounds.x - workArea.x) <= WINDOW_EDGE_SNAP_THRESHOLD
+  const pinnedRight = Math.abs(workAreaRight - currentRight) <= WINDOW_EDGE_SNAP_THRESHOLD
+  const pinnedTop = Math.abs(currentBounds.y - workArea.y) <= WINDOW_EDGE_SNAP_THRESHOLD
+  const pinnedBottom = Math.abs(workAreaBottom - currentBottom) <= WINDOW_EDGE_SNAP_THRESHOLD
+
+  if (pinnedRight && !pinnedLeft) {
+    nextX = currentRight - nextWidth
+  }
+
+  if (pinnedBottom && !pinnedTop) {
+    nextY = currentBottom - nextHeight
+  }
+
+  nextX = clamp(nextX, workArea.x, Math.max(workArea.x, workAreaRight - nextWidth))
+  nextY = clamp(nextY, workArea.y, Math.max(workArea.y, workAreaBottom - MIN_VISIBLE_HEADER_HEIGHT))
+
+  return {
+    x: nextX,
+    y: nextY,
+    width: nextWidth,
+    height: nextHeight
+  }
+}
+
+function resizeWindowWithinVisibleArea(nextWidth: number, nextHeight: number): void {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    return
+  }
+
+  const nextBounds = computeVisibleBounds(nextWidth, nextHeight)
+  if (!nextBounds) {
+    return
+  }
+
+  mainWindow.setBounds(nextBounds)
 }
 
 function createTray(): void {
@@ -766,7 +825,7 @@ ipcMain.handle('window:set-sidebar-collapsed', async (_event, collapsed: boolean
     sidebarCollapsed = true
 
     mainWindow.setMinimumSize(COLLAPSED_MIN_WIDTH, 200)
-    mainWindow.setSize(Math.max(collapsedSize.width, COLLAPSED_MIN_WIDTH), collapsedSize.height)
+    resizeWindowWithinVisibleArea(Math.max(collapsedSize.width, COLLAPSED_MIN_WIDTH), collapsedSize.height)
 
     return
   }
@@ -777,7 +836,7 @@ ipcMain.handle('window:set-sidebar-collapsed', async (_event, collapsed: boolean
   }
   sidebarCollapsed = false
   mainWindow.setMinimumSize(EXPANDED_MIN_WIDTH, 200)
-  mainWindow.setSize(Math.max(expandedSize.width, EXPANDED_MIN_WIDTH), expandedSize.height)
+  resizeWindowWithinVisibleArea(Math.max(expandedSize.width, EXPANDED_MIN_WIDTH), expandedSize.height)
 })
 
 ipcMain.handle('window:get-state', async () => {
