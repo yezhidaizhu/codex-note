@@ -88,6 +88,8 @@ function handleClick() {
           <span class="text-[10px] leading-none">✓</span>
         </span>
 
+        <span v-else class="h-5 w-5 shrink-0" aria-hidden="true" />
+
         <span
           :class="cn('flex h-6 w-6 shrink-0 items-center justify-center rounded-md transition-colors', iconClass())"
           aria-hidden="true"

@@ -134,7 +134,7 @@ function iconClass() {
 
     <div
       v-if="expandedFolderPaths.includes(folder.path)"
-      class="ml-[22px] flex flex-col gap-[2px] rounded-[calc(var(--radius)-0.2rem)] border-l border-[var(--tree-item-guide)] pl-[var(--space-2)]"
+      class="ml-[22px] flex flex-col gap-[2px] border-l border-[var(--tree-item-guide)] pl-[var(--space-2)]"
     >
       <NotesTreeFolderNode
         v-for="childFolder in foldersByParent[folder.path] ?? []"
