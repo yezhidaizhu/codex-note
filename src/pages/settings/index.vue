@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { ChevronLeft, Settings2 } from 'lucide-vue-next'
+import { CircleArrowLeft } from 'lucide-vue-next'
 import { storeToRefs } from 'pinia'
 import { useRouter } from 'vue-router'
 import Button from '@/components/ui/button.vue'
@@ -19,7 +19,6 @@ const sections = [
   { key: 'appearance', label: '外观' },
 ] as const
 const activeSectionKey = ref<(typeof sections)[number]['key']>('general')
-const MAC_WINDOW_CONTROLS_GAP = 'pl-[78px]'
 const settingsSidebarCollapsed = computed(() => false)
 const { isResizing: isSettingsSidebarResizing, beginResize: beginSettingsSidebarResize } = usePanelResize(
   sidebarWidth,
@@ -81,11 +80,10 @@ function updateTransparentBackground(transparentBackground: boolean) {
         aria-hidden="true"
       />
 
-      <div class="drag-region flex h-9 shrink-0 items-center justify-between px-[var(--space-3)]">
-        <div :class="`no-drag flex items-center gap-2 text-[var(--muted-foreground)] ${MAC_WINDOW_CONTROLS_GAP}`">
-          <Settings2 class="h-4 w-4" />
-          <span class="text-ui-xs uppercase tracking-[0.26em]">Settings</span>
-        </div>
+      <div class="drag-region h-9 shrink-0" />
+
+      <div class="no-drag px-[var(--space-3)] pb-[var(--space-2)]">
+        <p class="text-ui-xs uppercase tracking-[0.24em] text-[var(--muted-foreground)]">设置</p>
       </div>
 
       <nav class="no-drag px-[var(--space-2)] pb-[var(--space-3)]">
@@ -119,7 +117,7 @@ function updateTransparentBackground(transparentBackground: boolean) {
         }"
       >
         <Button variant="ghost" size="sm" class="text-ui-sm h-8 w-full justify-start gap-2 px-3" @click="router.push('/')">
-          <ChevronLeft class="h-4 w-4" />
+          <CircleArrowLeft class="h-4 w-4" />
           返回编辑器
         </Button>
       </div>
