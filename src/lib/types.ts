@@ -8,6 +8,7 @@ export type AppearanceSettings = {
   mode: AppearanceMode
   theme: AppearanceTheme
   density: AppearanceDensity
+  transparentBackground: boolean
 }
 
 export type NoteListItem = {

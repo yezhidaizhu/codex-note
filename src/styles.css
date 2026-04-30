@@ -140,6 +140,67 @@ button {
   background: color-mix(in srgb, var(--editor) 24%, transparent);
 }
 
+:root[data-transparent-background='true'],
+:root[data-transparent-background='true'] body,
+:root[data-transparent-background='true'] #app {
+  background: transparent;
+  background-color: transparent;
+}
+
+:root[data-transparent-background='true'] .app-shell-surface {
+  background: transparent;
+}
+
+:root[data-transparent-background='true'] .editor-surface {
+  background: transparent;
+}
+
+:root[data-transparent-background='true'] .app-shell-glass {
+  backdrop-filter: blur(28px) saturate(140%);
+  -webkit-backdrop-filter: blur(28px) saturate(140%);
+}
+
+:root[data-transparent-background='true'] {
+  --background: rgba(0, 0, 0, 0);
+}
+
+:root[data-transparent-background='true'][data-appearance-mode='dark'] {
+  --card: rgba(11, 17, 32, 0.64);
+  --secondary: rgba(21, 28, 44, 0.56);
+  --muted: rgba(21, 28, 44, 0.4);
+  --accent: rgba(27, 36, 54, 0.52);
+  --editor: rgba(10, 16, 29, 0.26);
+  --shadow-soft: rgba(255, 255, 255, 0.06);
+  --shadow-deep: rgba(0, 0, 0, 0.32);
+  --popup-shadow: rgba(0, 0, 0, 0.3);
+  --dialog-shadow: rgba(0, 0, 0, 0.26);
+}
+
+:root[data-transparent-background='true'][data-appearance-mode='light'] {
+  --card: rgba(255, 255, 255, 0.62);
+  --secondary: rgba(248, 250, 252, 0.54);
+  --muted: rgba(248, 250, 252, 0.38);
+  --accent: rgba(241, 245, 249, 0.46);
+  --editor: rgba(255, 255, 255, 0.2);
+  --shadow-soft: rgba(255, 255, 255, 0.2);
+  --shadow-deep: rgba(15, 23, 42, 0.12);
+  --popup-shadow: rgba(15, 23, 42, 0.14);
+  --dialog-shadow: rgba(15, 23, 42, 0.12);
+}
+
+:root[data-transparent-background='false'] .app-shell-surface {
+  background: color-mix(in srgb, var(--card) 96%, var(--window-shell) 4%);
+}
+
+:root[data-transparent-background='false'] .app-shell-glass {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+:root[data-transparent-background='false'] .editor-surface {
+  background: var(--editor);
+}
+
 .panel-shadow {
   box-shadow:
     0 0 0 1px var(--shadow-soft),

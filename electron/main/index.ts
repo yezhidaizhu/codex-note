@@ -9,6 +9,7 @@ type StoredSettings = {
     mode: 'system' | 'dark' | 'light'
     theme: 'ember' | 'ocean' | 'forest'
     density: 'comfortable' | 'compact'
+    transparentBackground: boolean
   }
 }
 
@@ -64,7 +65,8 @@ const defaultSettings: StoredSettings = {
   appearance: {
     mode: 'system',
     theme: 'ember',
-    density: 'comfortable'
+    density: 'comfortable',
+    transparentBackground: true
   }
 }
 
@@ -613,7 +615,8 @@ ipcMain.handle('settings:update-appearance', async (_event, appearance: StoredSe
   const nextAppearance = {
     mode: appearance.mode ?? current.appearance.mode,
     theme: appearance.theme ?? current.appearance.theme,
-    density: appearance.density ?? current.appearance.density
+    density: appearance.density ?? current.appearance.density,
+    transparentBackground: appearance.transparentBackground ?? current.appearance.transparentBackground
   }
 
   await writeSettings({

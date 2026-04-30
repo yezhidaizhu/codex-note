@@ -30,6 +30,7 @@ const appearance = ref<AppearanceSettings>({
   mode: 'system',
   theme: 'ember',
   density: 'comfortable',
+  transparentBackground: true,
 })
 
 const themePresets: Record<AppearanceTheme, { primary: string; primaryForeground: string; ring: string }> = {
@@ -207,6 +208,7 @@ function applyAppearanceSettings(nextAppearance: AppearanceSettings) {
   root.style.colorScheme = resolvedMode
   root.dataset.appearanceMode = resolvedMode
   root.dataset.appearancePreference = nextAppearance.mode
+  root.dataset.transparentBackground = String(nextAppearance.transparentBackground)
 
   for (const [name, value] of Object.entries(nextMode)) {
     root.style.setProperty(name, value)

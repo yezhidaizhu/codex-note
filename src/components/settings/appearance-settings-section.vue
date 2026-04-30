@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Monitor, MoonStar, Palette, SlidersHorizontal, SunMedium } from 'lucide-vue-next'
+import { Layers3, Monitor, MoonStar, Palette, SlidersHorizontal, SunMedium } from 'lucide-vue-next'
 import { themePresets } from '@/state/notes'
 import type { AppearanceDensity, AppearanceMode, AppearanceSettings, AppearanceTheme } from '@/lib/types'
 
@@ -14,6 +14,7 @@ const emit = defineEmits<{
   (e: 'updateMode', mode: AppearanceMode): void
   (e: 'updateTheme', theme: AppearanceTheme): void
   (e: 'updateDensity', density: AppearanceDensity): void
+  (e: 'updateTransparentBackground', transparentBackground: boolean): void
 }>()
 
 function iconForMode(mode: AppearanceMode) {
@@ -31,7 +32,7 @@ function iconForMode(mode: AppearanceMode) {
       <div class="min-w-0 flex-1">
         <p class="text-ui-md font-medium">样式修改</p>
         <p class="text-ui-md mt-[var(--space-2)] max-w-2xl leading-7 text-[var(--muted-foreground)]">
-          现在可以分别调整明暗模式、主题色和界面密度，改动会即时应用到编辑器与侧边栏。
+          现在可以分别调整明暗模式、主题色、应用背景透明和界面密度，改动会即时应用到编辑器与侧边栏。
         </p>
 
         <div class="mt-[var(--space-5)]">
@@ -91,6 +92,45 @@ function iconForMode(mode: AppearanceMode) {
                 <p class="text-ui-sm font-medium text-[var(--foreground)]">{{ option.label }}</p>
               </div>
               <p class="text-ui-xs mt-[var(--space-2)] leading-6 text-[var(--muted-foreground)]">{{ option.description }}</p>
+            </button>
+          </div>
+        </div>
+
+        <div class="mt-[var(--space-5)]">
+          <div class="flex items-center gap-[var(--space-2)] text-[var(--foreground)]">
+            <Layers3 class="h-4 w-4 text-[var(--muted-foreground)]" />
+            <p class="text-ui-sm font-medium">应用背景透明</p>
+          </div>
+          <div class="mt-[var(--space-3)] grid gap-[var(--space-3)] md:grid-cols-2">
+            <button
+              type="button"
+              :class="
+                [
+                  'rounded-[calc(var(--radius)-0.05rem)] border px-[var(--space-3)] py-[var(--space-3)] text-left transition',
+                  appearance.transparentBackground
+                    ? 'border-[color-mix(in_srgb,var(--primary)_55%,transparent)] bg-[color-mix(in_srgb,var(--primary)_12%,transparent)]'
+                    : 'border-[color-mix(in_srgb,var(--border)_82%,transparent)] bg-[color-mix(in_srgb,var(--card)_34%,transparent)] hover:bg-[var(--interactive-hover)]',
+                ].join(' ')
+              "
+              @click="emit('updateTransparentBackground', true)"
+            >
+              <p class="text-ui-sm font-medium text-[var(--foreground)]">开启</p>
+              <p class="text-ui-xs mt-[var(--space-2)] leading-6 text-[var(--muted-foreground)]">窗口底部会透出背后的应用，并保留玻璃模糊感。</p>
+            </button>
+            <button
+              type="button"
+              :class="
+                [
+                  'rounded-[calc(var(--radius)-0.05rem)] border px-[var(--space-3)] py-[var(--space-3)] text-left transition',
+                  !appearance.transparentBackground
+                    ? 'border-[color-mix(in_srgb,var(--primary)_55%,transparent)] bg-[color-mix(in_srgb,var(--primary)_12%,transparent)]'
+                    : 'border-[color-mix(in_srgb,var(--border)_82%,transparent)] bg-[color-mix(in_srgb,var(--card)_34%,transparent)] hover:bg-[var(--interactive-hover)]',
+                ].join(' ')
+              "
+              @click="emit('updateTransparentBackground', false)"
+            >
+              <p class="text-ui-sm font-medium text-[var(--foreground)]">关闭</p>
+              <p class="text-ui-xs mt-[var(--space-2)] leading-6 text-[var(--muted-foreground)]">窗口底改成实体背景，不再透出后面的应用。</p>
             </button>
           </div>
         </div>

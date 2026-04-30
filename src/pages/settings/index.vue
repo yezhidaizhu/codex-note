@@ -52,6 +52,10 @@ function updateTheme(theme: AppearanceTheme) {
 function updateDensity(density: AppearanceDensity) {
   void store.updateAppearance({ ...appearance.value, density })
 }
+
+function updateTransparentBackground(transparentBackground: boolean) {
+  void store.updateAppearance({ ...appearance.value, transparentBackground })
+}
 </script>
 
 <template>
@@ -132,6 +136,7 @@ function updateDensity(density: AppearanceDensity) {
           :mode-options="modeOptions"
           :theme-options="themeOptions"
           :density-options="densityOptions"
+          @update-transparent-background="updateTransparentBackground"
           @update-mode="updateMode"
           @update-theme="updateTheme"
           @update-density="updateDensity"
