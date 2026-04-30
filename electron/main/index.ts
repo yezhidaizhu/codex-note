@@ -1,5 +1,5 @@
 import { mkdir, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/promises'
-import { basename, dirname, extname, join, parse } from 'node:path'
+import { basename, dirname, extname, join, parse, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, nativeTheme, Tray } from 'electron'
 
@@ -8,18 +8,45 @@ type StoredSettings = {
 }
 
 type NoteListItem = {
-  basename: string
+  path: string
+  name: string
+  parentPath: string | null
   title: string
   preview: string
   updatedAt: string
   size: number
 }
 
+type FolderListItem = {
+  path: string
+  name: string
+  parentPath: string | null
+}
+
 type NotePayload = {
-  basename: string
+  path: string
+  name: string
+  parentPath: string | null
   title: string
   content: string
   updatedAt: string
+}
+
+type NoteTreeResult = {
+  notes: NoteListItem[]
+  folders: FolderListItem[]
+}
+
+type RenameFolderResult = {
+  path: string
+  notes: NoteListItem[]
+  folders: FolderListItem[]
+}
+
+type MoveFolderResult = {
+  path: string
+  notes: NoteListItem[]
+  folders: FolderListItem[]
 }
 
 const NOTE_TITLE_MAX_LENGTH = 36
@@ -62,9 +89,7 @@ function createTray(): void {
     return
   }
 
-  const trayIcon = process.platform === 'darwin'
-    ? nativeImage.createFromPath(trayTemplateIconPath)
-    : nativeImage.createFromPath(appIconPath)
+  const trayIcon = process.platform === 'darwin' ? nativeImage.createFromPath(trayTemplateIconPath) : nativeImage.createFromPath(appIconPath)
 
   if (process.platform === 'darwin') {
     const trayIcon2x = nativeImage.createFromPath(trayTemplateIcon2xPath)
@@ -99,9 +124,6 @@ function createTray(): void {
     }
   ])
 
-  // NOTE:
-  // - `tray.setContextMenu(...)` may show the menu on left click on some platforms (notably macOS).
-  // - We want: left click restores window, right click shows menu.
   tray.on('click', () => restoreWindow())
   tray.on('right-click', () => tray?.popUpContextMenu(trayMenu))
 }
@@ -209,6 +231,40 @@ async function ensureDir(dirPath: string): Promise<void> {
   await mkdir(dirPath, { recursive: true })
 }
 
+function normalizeRelativePath(pathValue: string | null | undefined): string | null {
+  if (!pathValue) return null
+  const normalized = pathValue
+    .replace(/\\/g, '/')
+    .split('/')
+    .map((segment) => segment.trim())
+    .filter((segment) => segment.length > 0 && segment !== '.')
+
+  if (normalized.some((segment) => segment === '..')) {
+    throw new Error('路径非法。')
+  }
+
+  if (normalized.length === 0) return null
+  return normalized.join('/')
+}
+
+function parentFromPath(pathValue: string): string | null {
+  const parent = dirname(pathValue)
+  return parent === '.' ? null : parent.replace(/\\/g, '/')
+}
+
+function resolveInNotesDir(notesDir: string, pathValue: string | null): string {
+  const relativePath = normalizeRelativePath(pathValue)
+  const absolutePath = resolve(relativePath ? join(notesDir, relativePath) : notesDir)
+  const rootPath = resolve(notesDir)
+  const relativeToRoot = relative(rootPath, absolutePath)
+
+  if (relativeToRoot.startsWith('..') || relativeToRoot.includes('/../') || relativeToRoot.includes('\\..\\')) {
+    throw new Error('路径越界。')
+  }
+
+  return absolutePath
+}
+
 function ensureMarkdownName(name: string): string {
   const trimmed = name.trim() || 'untitled'
   const withoutExtension = extname(trimmed).toLowerCase() === '.md' ? parse(trimmed).name : trimmed
@@ -229,8 +285,13 @@ function normalizeTitle(title: string): string {
   return (cleaned || 'Untitled').slice(0, NOTE_TITLE_MAX_LENGTH).trim() || 'Untitled'
 }
 
-function notePath(notesDir: string, noteBasename: string): string {
-  return join(notesDir, ensureMarkdownName(noteBasename))
+function normalizeFolderName(name: string): string {
+  const cleaned = name
+    .trim()
+    .replace(/[\\/:*?"<>|]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+  return cleaned || '新建目录'
 }
 
 function previewFromContent(content: string): string {
@@ -243,22 +304,41 @@ function previewFromContent(content: string): string {
     .slice(0, 120)
 }
 
-async function uniqueBasename(notesDir: string, preferredName: string, currentBasename?: string): Promise<string> {
-  const target = ensureMarkdownName(preferredName)
-  if (currentBasename && target === currentBasename) {
-    return currentBasename
-  }
-
-  let candidate = target
+async function uniqueNotePath(notesDir: string, parentPath: string | null, preferredName: string, currentPath?: string): Promise<string> {
+  const targetName = ensureMarkdownName(preferredName)
+  const baseName = parse(targetName).name
+  let candidateName = targetName
   let index = 1
 
   for (;;) {
+    const candidatePath = parentPath ? `${parentPath}/${candidateName}` : candidateName
+    if (currentPath && currentPath === candidatePath) {
+      return candidatePath
+    }
+
     try {
-      await stat(notePath(notesDir, candidate))
-      candidate = `${parse(target).name}-${index}.md`
+      await stat(resolveInNotesDir(notesDir, candidatePath))
+      candidateName = `${baseName}-${index}.md`
       index += 1
     } catch {
-      return candidate
+      return candidatePath
+    }
+  }
+}
+
+async function uniqueFolderPath(notesDir: string, parentPath: string | null, preferredName: string): Promise<string> {
+  const baseName = normalizeFolderName(preferredName)
+  let candidateName = baseName
+  let index = 1
+
+  for (;;) {
+    const candidatePath = parentPath ? `${parentPath}/${candidateName}` : candidateName
+    try {
+      await stat(resolveInNotesDir(notesDir, candidatePath))
+      candidateName = `${baseName}-${index}`
+      index += 1
+    } catch {
+      return candidatePath
     }
   }
 }
@@ -272,40 +352,67 @@ async function getNotesDirOrThrow(): Promise<string> {
   return settings.notesDir
 }
 
-async function listNotes(notesDir: string): Promise<NoteListItem[]> {
+async function listNotesTree(notesDir: string): Promise<NoteTreeResult> {
   await ensureDir(notesDir)
-  const entries = await readdir(notesDir, { withFileTypes: true })
-  const notes = await Promise.all(
-    entries
-      .filter((entry) => entry.isFile() && extname(entry.name).toLowerCase() === '.md')
-      .map(async (entry) => {
-        const filepath = join(notesDir, entry.name)
-        const [content, fileStat] = await Promise.all([readFile(filepath, 'utf8'), stat(filepath)])
-        const firstNonEmptyLine =
-          content
-            .replace(/\r/g, '')
-            .split('\n')
-            .map((line) => line.trim())
-            .find(Boolean) ?? parse(entry.name).name
+  const notes: NoteListItem[] = []
+  const folders: FolderListItem[] = []
 
-        return {
-          basename: entry.name,
-          title: normalizeTitle(firstNonEmptyLine),
-          preview: previewFromContent(content),
-          updatedAt: fileStat.mtime.toISOString(),
-          size: fileStat.size
-        }
+  async function walk(currentDir: string, parentPath: string | null): Promise<void> {
+    const entries = await readdir(currentDir, { withFileTypes: true })
+    entries.sort((left, right) => left.name.localeCompare(right.name, 'zh-Hans-CN'))
+
+    for (const entry of entries) {
+      const entryAbsolutePath = join(currentDir, entry.name)
+      const entryRelativePath = parentPath ? `${parentPath}/${entry.name}` : entry.name
+
+      if (entry.isDirectory()) {
+        folders.push({
+          path: entryRelativePath,
+          name: entry.name,
+          parentPath
+        })
+        await walk(entryAbsolutePath, entryRelativePath)
+        continue
+      }
+
+      if (!entry.isFile() || extname(entry.name).toLowerCase() !== '.md') continue
+
+      const [content, fileStat] = await Promise.all([readFile(entryAbsolutePath, 'utf8'), stat(entryAbsolutePath)])
+      const firstNonEmptyLine =
+        content
+          .replace(/\r/g, '')
+          .split('\n')
+          .map((line) => line.trim())
+          .find(Boolean) ?? parse(entry.name).name
+
+      notes.push({
+        path: entryRelativePath,
+        name: entry.name,
+        parentPath,
+        title: normalizeTitle(firstNonEmptyLine),
+        preview: previewFromContent(content),
+        updatedAt: fileStat.mtime.toISOString(),
+        size: fileStat.size
       })
-  )
+    }
+  }
 
-  return notes.sort((left, right) => {
-    return new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime()
-  })
+  await walk(notesDir, null)
+
+  notes.sort((left, right) => new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime())
+  folders.sort((left, right) => left.path.localeCompare(right.path, 'zh-Hans-CN'))
+
+  return { notes, folders }
 }
 
-async function readNote(notesDir: string, noteBasename: string): Promise<NotePayload> {
-  const filepath = notePath(notesDir, noteBasename)
-  const [content, fileStat] = await Promise.all([readFile(filepath, 'utf8'), stat(filepath)])
+async function readNote(notesDir: string, notePath: string): Promise<NotePayload> {
+  const normalizedPath = normalizeRelativePath(notePath)
+  if (!normalizedPath) {
+    throw new Error('笔记路径不能为空。')
+  }
+
+  const filePath = resolveInNotesDir(notesDir, normalizedPath)
+  const [content, fileStat] = await Promise.all([readFile(filePath, 'utf8'), stat(filePath)])
   const firstLine = content
     .replace(/\r/g, '')
     .split('\n')
@@ -313,10 +420,94 @@ async function readNote(notesDir: string, noteBasename: string): Promise<NotePay
     .find(Boolean)
 
   return {
-    basename: basename(filepath),
-    title: normalizeTitle(firstLine ?? parse(noteBasename).name),
+    path: normalizedPath,
+    name: basename(filePath),
+    parentPath: parentFromPath(normalizedPath),
+    title: normalizeTitle(firstLine ?? parse(normalizedPath).name),
     content,
     updatedAt: fileStat.mtime.toISOString()
+  }
+}
+
+async function renameNoteInPlace(notesDir: string, notePath: string, nextName: string) {
+  const normalizedPath = normalizeRelativePath(notePath)
+  if (!normalizedPath) {
+    throw new Error('笔记路径不能为空。')
+  }
+
+  const parentPath = parentFromPath(normalizedPath)
+  const nextPath = await uniqueNotePath(notesDir, parentPath, nextName, normalizedPath)
+
+  if (nextPath !== normalizedPath) {
+    await rename(resolveInNotesDir(notesDir, normalizedPath), resolveInNotesDir(notesDir, nextPath))
+  }
+
+  const noteTree = await listNotesTree(notesDir)
+  return {
+    note: await readNote(notesDir, nextPath),
+    notes: noteTree.notes,
+    folders: noteTree.folders
+  }
+}
+
+async function renameFolderInPlace(notesDir: string, folderPath: string, nextName: string): Promise<RenameFolderResult> {
+  const normalizedPath = normalizeRelativePath(folderPath)
+  if (!normalizedPath) {
+    throw new Error('目录路径不能为空。')
+  }
+
+  const parentPath = parentFromPath(normalizedPath)
+  const nextPath = await uniqueFolderPath(notesDir, parentPath, nextName)
+
+  if (nextPath !== normalizedPath) {
+    await rename(resolveInNotesDir(notesDir, normalizedPath), resolveInNotesDir(notesDir, nextPath))
+  }
+
+  const noteTree = await listNotesTree(notesDir)
+  return {
+    path: nextPath,
+    notes: noteTree.notes,
+    folders: noteTree.folders
+  }
+}
+
+async function moveFolderInPlace(notesDir: string, folderPath: string, targetFolderPath: string | null): Promise<MoveFolderResult> {
+  const normalizedPath = normalizeRelativePath(folderPath)
+  if (!normalizedPath) {
+    throw new Error('目录路径不能为空。')
+  }
+
+  const normalizedTargetFolderPath = normalizeRelativePath(targetFolderPath)
+  if (normalizedTargetFolderPath === normalizedPath) {
+    throw new Error('不能将目录移动到自身。')
+  }
+
+  if (normalizedTargetFolderPath?.startsWith(`${normalizedPath}/`)) {
+    throw new Error('不能将目录移动到自身的子目录中。')
+  }
+
+  const currentParentPath = parentFromPath(normalizedPath)
+  if (currentParentPath === normalizedTargetFolderPath) {
+    const noteTree = await listNotesTree(notesDir)
+    return {
+      path: normalizedPath,
+      notes: noteTree.notes,
+      folders: noteTree.folders
+    }
+  }
+
+  if (normalizedTargetFolderPath) {
+    await ensureDir(resolveInNotesDir(notesDir, normalizedTargetFolderPath))
+  }
+
+  const nextPath = await uniqueFolderPath(notesDir, normalizedTargetFolderPath, basename(normalizedPath))
+  await rename(resolveInNotesDir(notesDir, normalizedPath), resolveInNotesDir(notesDir, nextPath))
+
+  const noteTree = await listNotesTree(notesDir)
+  return {
+    path: nextPath,
+    notes: noteTree.notes,
+    folders: noteTree.folders
   }
 }
 
@@ -357,9 +548,12 @@ ipcMain.handle('settings:get', async () => {
     await ensureDir(settings.notesDir)
   }
 
+  const noteTree = settings.notesDir ? await listNotesTree(settings.notesDir) : { notes: [], folders: [] }
+
   return {
     ...settings,
-    notes: settings.notesDir ? await listNotes(settings.notesDir) : []
+    notes: noteTree.notes,
+    folders: noteTree.folders
   }
 })
 
@@ -378,50 +572,135 @@ ipcMain.handle('notes:choose-directory', async () => {
   const notesDir = result.filePaths[0]
   await ensureDir(notesDir)
   await writeSettings({ notesDir })
+  const noteTree = await listNotesTree(notesDir)
 
   return {
     notesDir,
-    notes: await listNotes(notesDir)
+    notes: noteTree.notes,
+    folders: noteTree.folders
   }
 })
 
 ipcMain.handle('notes:list', async () => {
   const notesDir = await getNotesDirOrThrow()
-  return listNotes(notesDir)
+  return listNotesTree(notesDir)
 })
 
-ipcMain.handle('notes:read', async (_event, noteBasename: string) => {
+ipcMain.handle('notes:read', async (_event, notePath: string) => {
   const notesDir = await getNotesDirOrThrow()
-  return readNote(notesDir, noteBasename)
+  return readNote(notesDir, notePath)
 })
 
 ipcMain.handle(
   'notes:save',
-  async (_event, payload: { currentBasename?: string | null; title: string; content: string }) => {
+  async (_event, payload: { currentPath?: string | null; parentPath: string | null; title: string; content: string }) => {
     const notesDir = await getNotesDirOrThrow()
     const normalizedTitle = normalizeTitle(payload.title)
-    const basenameToSave = await uniqueBasename(notesDir, normalizedTitle, payload.currentBasename ?? undefined)
-    const content = payload.content
-    const nextPath = notePath(notesDir, basenameToSave)
+    const currentPath = normalizeRelativePath(payload.currentPath ?? null)
+    let nextPath: string
 
-    if (payload.currentBasename && payload.currentBasename !== basenameToSave) {
-      const previousPath = notePath(notesDir, payload.currentBasename)
-      await rename(previousPath, nextPath)
+    if (currentPath) {
+      nextPath = currentPath
+      await writeFile(resolveInNotesDir(notesDir, currentPath), payload.content, 'utf8')
+    } else {
+      const parentPath = normalizeRelativePath(payload.parentPath)
+      if (parentPath) {
+        await ensureDir(resolveInNotesDir(notesDir, parentPath))
+      }
+      nextPath = await uniqueNotePath(notesDir, parentPath, normalizedTitle)
+      await writeFile(resolveInNotesDir(notesDir, nextPath), payload.content, 'utf8')
     }
 
-    await writeFile(nextPath, content, 'utf8')
+    const noteTree = await listNotesTree(notesDir)
 
     return {
-      note: await readNote(notesDir, basenameToSave),
-      notes: await listNotes(notesDir)
+      note: await readNote(notesDir, nextPath),
+      notes: noteTree.notes,
+      folders: noteTree.folders
     }
   }
 )
 
-ipcMain.handle('notes:delete', async (_event, noteBasename: string) => {
+ipcMain.handle('notes:delete', async (_event, notePath: string) => {
   const notesDir = await getNotesDirOrThrow()
-  await rm(notePath(notesDir, noteBasename), { force: true })
-  return listNotes(notesDir)
+  const normalizedPath = normalizeRelativePath(notePath)
+  if (!normalizedPath) {
+    throw new Error('笔记路径不能为空。')
+  }
+
+  await rm(resolveInNotesDir(notesDir, normalizedPath), { force: true })
+  return listNotesTree(notesDir)
+})
+
+ipcMain.handle('notes:create-folder', async (_event, parentPath: string | null, name: string) => {
+  const notesDir = await getNotesDirOrThrow()
+  const normalizedParentPath = normalizeRelativePath(parentPath)
+  if (normalizedParentPath) {
+    await ensureDir(resolveInNotesDir(notesDir, normalizedParentPath))
+  }
+
+  const folderPath = await uniqueFolderPath(notesDir, normalizedParentPath, name)
+  await ensureDir(resolveInNotesDir(notesDir, folderPath))
+  return listNotesTree(notesDir)
+})
+
+ipcMain.handle('notes:delete-folder', async (_event, folderPath: string) => {
+  const notesDir = await getNotesDirOrThrow()
+  const normalizedPath = normalizeRelativePath(folderPath)
+  if (!normalizedPath) {
+    throw new Error('目录路径不能为空。')
+  }
+
+  await rm(resolveInNotesDir(notesDir, normalizedPath), { recursive: true, force: true })
+  return listNotesTree(notesDir)
+})
+
+ipcMain.handle('notes:move', async (_event, notePath: string, targetFolderPath: string | null) => {
+  const notesDir = await getNotesDirOrThrow()
+  const normalizedPath = normalizeRelativePath(notePath)
+  if (!normalizedPath) {
+    throw new Error('笔记路径不能为空。')
+  }
+
+  const normalizedTargetFolderPath = normalizeRelativePath(targetFolderPath)
+  if (normalizedTargetFolderPath) {
+    await ensureDir(resolveInNotesDir(notesDir, normalizedTargetFolderPath))
+  }
+
+  const currentParentPath = parentFromPath(normalizedPath)
+  if (currentParentPath === normalizedTargetFolderPath) {
+    const noteTree = await listNotesTree(notesDir)
+    return {
+      note: await readNote(notesDir, normalizedPath),
+      notes: noteTree.notes,
+      folders: noteTree.folders
+    }
+  }
+
+  const nextPath = await uniqueNotePath(notesDir, normalizedTargetFolderPath, basename(normalizedPath))
+  await rename(resolveInNotesDir(notesDir, normalizedPath), resolveInNotesDir(notesDir, nextPath))
+  const noteTree = await listNotesTree(notesDir)
+
+  return {
+    note: await readNote(notesDir, nextPath),
+    notes: noteTree.notes,
+    folders: noteTree.folders
+  }
+})
+
+ipcMain.handle('notes:move-folder', async (_event, folderPath: string, targetFolderPath: string | null) => {
+  const notesDir = await getNotesDirOrThrow()
+  return moveFolderInPlace(notesDir, folderPath, targetFolderPath)
+})
+
+ipcMain.handle('notes:rename-note', async (_event, notePath: string, name: string) => {
+  const notesDir = await getNotesDirOrThrow()
+  return renameNoteInPlace(notesDir, notePath, name)
+})
+
+ipcMain.handle('notes:rename-folder', async (_event, folderPath: string, name: string) => {
+  const notesDir = await getNotesDirOrThrow()
+  return renameFolderInPlace(notesDir, folderPath, name)
 })
 
 ipcMain.handle('window:set-sidebar-collapsed', async (_event, collapsed: boolean) => {

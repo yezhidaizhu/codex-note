@@ -1,24 +1,63 @@
 <script setup lang="ts">
 import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
-import { FolderOpen, Plus } from 'lucide-vue-next'
+import { FilePlus2, FolderOpen } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
-import DeleteNoteDialog from '@/components/delete-note-dialog.vue'
+import ConfirmDialog from '@/components/confirm-dialog.vue'
+import EntityNameDialog from '@/components/entity-name-dialog.vue'
 import NoteContextMenu from '@/components/note-context-menu.vue'
 import TitleBar from '@/components/app/titlebar.vue'
 import NotesSidebar from '@/components/app/notes-sidebar.vue'
 import Button from '@/components/ui/button.vue'
 import Textarea from '@/components/ui/textarea.vue'
-import { buildDeleteMessage, getListLabel, useNotesStore } from '@/state/notes'
+import { buildDeleteFolderMessage, buildDeleteMessage, getListLabel, useNotesStore } from '@/state/notes'
 
-type PendingDeleteState = {
-  basenames: string[]
-  title: string
-  message: string
-  confirmLabel?: string
-} | null
+type PendingConfirmState =
+  | {
+      action: 'deleteNotes'
+      paths: string[]
+      title: string
+      message: string
+      confirmLabel?: string
+    }
+  | {
+      action: 'deleteFolder'
+      folderPath: string
+      title: string
+      message: string
+      confirmLabel?: string
+    }
+  | null
+
+type NameDialogState =
+  | {
+      mode: 'createFolder'
+      parentPath: string | null
+      title: string
+      confirmLabel: string
+      initialValue: string
+      entityType: 'folder'
+    }
+  | {
+      mode: 'renameNote'
+      path: string
+      title: string
+      confirmLabel: string
+      initialValue: string
+      entityType: 'note'
+    }
+  | {
+      mode: 'renameFolder'
+      path: string
+      title: string
+      confirmLabel: string
+      initialValue: string
+      entityType: 'folder'
+    }
+  | null
 
 type NoteContextMenuState = {
-  basename: string
+  targetType: 'note' | 'folder'
+  path: string
   x: number
   y: number
 } | null
@@ -28,17 +67,27 @@ const store = useNotesStore()
 
 const contextMenu = ref<NoteContextMenuState>(null)
 const listActionsMenuOpen = ref(false)
-const pendingDelete = ref<PendingDeleteState>(null)
+const pendingConfirm = ref<PendingConfirmState>(null)
+const nameDialogState = ref<NameDialogState>(null)
 const isBatchSelecting = ref(false)
-const selectedBasenames = ref<string[]>([])
+const selectedPaths = ref<string[]>([])
 const isSidebarResizing = ref(false)
 const sidebarResizeStart = ref<{ pointerX: number; width: number } | null>(null)
 const pendingEditorFocus = ref(false)
 const editorTextarea = ref<{ focus: () => void; setSelectionRange: (start: number, end: number) => void } | null>(null)
 
+function folderNameFromPath(pathValue: string): string {
+  const segments = pathValue.split('/')
+  return segments[segments.length - 1] || pathValue
+}
+
+function noteNameForRename(name: string): string {
+  return name.replace(/\.md$/i, '')
+}
+
 function handleShellContextMenu(event: MouseEvent) {
   const target = event.target
-  if (!(target instanceof HTMLElement) || !target.closest('[data-note-item="true"]')) {
+  if (!(target instanceof HTMLElement) || !target.closest('[data-note-item="true"], [data-folder-item="true"]')) {
     contextMenu.value = null
   }
 }
@@ -47,16 +96,71 @@ function handleShellClick() {
   contextMenu.value = null
 }
 
-function confirmDeleteNotes(basenames: string[]) {
-  if (basenames.length === 0) return
+function confirmDeleteNotes(paths: string[]) {
+  if (paths.length === 0) return
+  const targetNote = paths.length === 1 ? store.notes.value.find((note) => note.path === paths[0]) : null
 
-  const targetNote = basenames.length === 1 ? store.notes.value.find((note) => note.basename === basenames[0]) : null
-  pendingDelete.value = {
-    basenames,
-    title: basenames.length > 1 ? '批量删除笔记？' : '删除笔记？',
-    message: buildDeleteMessage(basenames.length, targetNote ? getListLabel(targetNote) : undefined),
+  pendingConfirm.value = {
+    action: 'deleteNotes',
+    paths,
+    title: paths.length > 1 ? '批量删除笔记？' : '删除笔记？',
+    message: buildDeleteMessage(paths.length, targetNote ? getListLabel(targetNote) : undefined),
     confirmLabel: '删除',
   }
+}
+
+function confirmDeleteFolder(folderPath: string) {
+  const notesCount = store.countNotesInFolder(folderPath)
+  const folderLabel = folderNameFromPath(folderPath)
+  pendingConfirm.value = {
+    action: 'deleteFolder',
+    folderPath,
+    title: '删除目录？',
+    message: buildDeleteFolderMessage(folderLabel, notesCount),
+    confirmLabel: '删除',
+  }
+}
+
+function openCreateFolderDialog(parentPath: string | null) {
+  const folderLabel = parentPath ? `在「${folderNameFromPath(parentPath)}」中新建目录` : '新建目录'
+  nameDialogState.value = {
+    mode: 'createFolder',
+    parentPath,
+    title: folderLabel,
+    confirmLabel: '创建',
+    initialValue: '',
+    entityType: 'folder',
+  }
+  listActionsMenuOpen.value = false
+  contextMenu.value = null
+}
+
+function openRenameNoteDialog(path: string) {
+  const target = store.notes.value.find((note) => note.path === path)
+  if (!target) return
+  nameDialogState.value = {
+    mode: 'renameNote',
+    path,
+    title: '重命名文件',
+    confirmLabel: '重命名',
+    initialValue: noteNameForRename(target.name),
+    entityType: 'note',
+  }
+  listActionsMenuOpen.value = false
+  contextMenu.value = null
+}
+
+function openRenameFolderDialog(path: string) {
+  nameDialogState.value = {
+    mode: 'renameFolder',
+    path,
+    title: '重命名目录',
+    confirmLabel: '重命名',
+    initialValue: folderNameFromPath(path),
+    entityType: 'folder',
+  }
+  listActionsMenuOpen.value = false
+  contextMenu.value = null
 }
 
 function toggleBatchSelect() {
@@ -64,14 +168,14 @@ function toggleBatchSelect() {
   listActionsMenuOpen.value = false
 }
 
-function toggleNoteSelection(basename: string) {
-  selectedBasenames.value = selectedBasenames.value.includes(basename)
-    ? selectedBasenames.value.filter((item) => item !== basename)
-    : [...selectedBasenames.value, basename]
+function toggleNoteSelection(path: string) {
+  selectedPaths.value = selectedPaths.value.includes(path)
+    ? selectedPaths.value.filter((item) => item !== path)
+    : [...selectedPaths.value, path]
 }
 
 watch(isBatchSelecting, (enabled) => {
-  if (!enabled && selectedBasenames.value.length > 0) selectedBasenames.value = []
+  if (!enabled && selectedPaths.value.length > 0) selectedPaths.value = []
 })
 
 watch(contextMenu, (menu, _prev, onCleanup) => {
@@ -163,9 +267,9 @@ function onEditorInput(event: Event) {
   store.activeNote.value = { ...store.activeNote.value, content: target?.value ?? '' }
 }
 
-function createNoteAndFocus() {
+function createNoteAndFocus(parentPath: string | null = null) {
   pendingEditorFocus.value = true
-  store.createNote()
+  store.createNote(parentPath)
 }
 
 const onSaveHotkey = (event: KeyboardEvent) => {
@@ -190,7 +294,7 @@ onUnmounted(() => window.removeEventListener('keydown', onSaveHotkey))
       :notes-dir="store.notesDir.value"
       :is-pinned="store.isPinned.value"
       @toggleSidebar="store.sidebarCollapsed.value = !store.sidebarCollapsed.value"
-      @createNote="createNoteAndFocus"
+      @createNote="createNoteAndFocus()"
       @togglePinned="store.togglePinned"
     />
 
@@ -198,25 +302,32 @@ onUnmounted(() => window.removeEventListener('keydown', onSaveHotkey))
       <NotesSidebar
         :notes-dir="store.notesDir.value"
         :notes="store.notes.value"
+        :folders="store.folders.value"
         :filtered-notes="store.filteredNotes.value"
         :query="store.query.value"
-        :selected-basename="store.selectedBasename.value"
+        :selected-path="store.selectedPath.value"
         :sidebar-collapsed="store.sidebarCollapsed.value"
         :sidebar-width="store.sidebarWidth.value"
         :is-sidebar-resizing="isSidebarResizing"
         :is-batch-selecting="isBatchSelecting"
-        :selected-basenames="selectedBasenames"
+        :selected-paths="selectedPaths"
+        :expanded-folder-paths="store.expandedFolderPaths.value"
         :list-actions-menu-open="listActionsMenuOpen"
         @update:query="store.query.value = $event"
-        @createNote="createNoteAndFocus"
+        @createNote="createNoteAndFocus()"
         @openNote="store.openNote($event)"
         @toggleListActionsMenu="listActionsMenuOpen = !listActionsMenuOpen"
         @toggleBatchSelect="toggleBatchSelect"
         @toggleNoteSelection="toggleNoteSelection($event)"
-        @confirmDeleteSelected="confirmDeleteNotes(selectedBasenames)"
+        @confirmDeleteSelected="confirmDeleteNotes(selectedPaths)"
         @goSettings="router.push('/settings')"
         @beginResize="beginSidebarResize"
-        @requestContextMenu="contextMenu = $event"
+        @requestNoteContextMenu="contextMenu = { targetType: 'note', path: $event.path, x: $event.x, y: $event.y }"
+        @requestFolderContextMenu="contextMenu = { targetType: 'folder', path: $event.path, x: $event.x, y: $event.y }"
+        @toggleFolderExpanded="store.toggleFolderExpanded($event)"
+        @moveNoteToFolder="store.moveNote($event.path, $event.targetFolderPath)"
+        @moveFolderToFolder="store.moveFolder($event.path, $event.targetFolderPath)"
+        @requestCreateFolder="openCreateFolderDialog($event)"
       />
 
       <main class="flex min-h-0 flex-1 flex-col overflow-hidden bg-transparent">
@@ -257,8 +368,8 @@ onUnmounted(() => window.removeEventListener('keydown', onSaveHotkey))
             <p class="text-ui-md mt-[var(--space-4)] leading-7 text-[var(--muted-foreground)]">
               左侧读取所选目录里的 `.md` 文件，右侧直接编辑原始 Markdown 文本。
             </p>
-            <Button class="mt-[var(--space-5)] gap-[var(--space-2)]" @click="createNoteAndFocus">
-              <Plus class="h-4 w-4" />
+            <Button class="mt-[var(--space-5)] gap-[var(--space-2)]" @click="createNoteAndFocus()">
+              <FilePlus2 class="h-4 w-4" />
               新建笔记
             </Button>
           </div>
@@ -277,27 +388,91 @@ onUnmounted(() => window.removeEventListener('keydown', onSaveHotkey))
       v-if="contextMenu"
       :x="contextMenu.x"
       :y="contextMenu.y"
-      @delete="
+      :target-type="contextMenu.targetType"
+      @delete-note="
         () => {
-          const target = store.notes.value.find((note) => note.basename === contextMenu?.basename)
+          const target = store.notes.value.find((note) => note.path === contextMenu?.path)
           contextMenu = null
-          if (target) confirmDeleteNotes([target.basename])
+          if (target) confirmDeleteNotes([target.path])
+        }
+      "
+      @rename-note="
+        () => {
+          const targetPath = contextMenu?.targetType === 'note' ? contextMenu.path : null
+          contextMenu = null
+          if (targetPath) openRenameNoteDialog(targetPath)
+        }
+      "
+      @create-note-in-folder="
+        () => {
+          const targetPath = contextMenu?.targetType === 'folder' ? contextMenu.path : null
+          contextMenu = null
+          if (targetPath) createNoteAndFocus(targetPath)
+        }
+      "
+      @create-folder-in-folder="
+        () => {
+          const targetPath = contextMenu?.targetType === 'folder' ? contextMenu.path : null
+          contextMenu = null
+          if (targetPath) openCreateFolderDialog(targetPath)
+        }
+      "
+      @rename-folder="
+        () => {
+          const targetPath = contextMenu?.targetType === 'folder' ? contextMenu.path : null
+          contextMenu = null
+          if (targetPath) openRenameFolderDialog(targetPath)
+        }
+      "
+      @delete-folder="
+        () => {
+          const targetPath = contextMenu?.targetType === 'folder' ? contextMenu.path : null
+          contextMenu = null
+          if (targetPath) confirmDeleteFolder(targetPath)
         }
       "
     />
 
-    <DeleteNoteDialog
-      v-if="pendingDelete"
-      :title="pendingDelete.title"
-      :message="pendingDelete.message"
-      :confirm-label="pendingDelete.confirmLabel"
-      @cancel="pendingDelete = null"
+    <ConfirmDialog
+      v-if="pendingConfirm"
+      :title="pendingConfirm.title"
+      :message="pendingConfirm.message"
+      :confirm-label="pendingConfirm.confirmLabel"
+      @cancel="pendingConfirm = null"
       @confirm="
         () => {
-          const targets = pendingDelete?.basenames ?? []
-          pendingDelete = null
-          void store.deleteNotesByBasenames(targets)
-          if (targets.length > 1) isBatchSelecting = false
+          const nextPending = pendingConfirm
+          pendingConfirm = null
+          if (!nextPending) return
+          if (nextPending.action === 'deleteNotes') {
+            void store.deleteNotesByPaths(nextPending.paths)
+            if (nextPending.paths.length > 1) isBatchSelecting = false
+          } else {
+            void store.deleteFolder(nextPending.folderPath)
+          }
+        }
+      "
+    />
+
+    <EntityNameDialog
+      v-if="nameDialogState"
+      :title="nameDialogState.title"
+      :confirm-label="nameDialogState.confirmLabel"
+      :initial-value="nameDialogState.initialValue"
+      :entity-type="nameDialogState.entityType"
+      @cancel="nameDialogState = null"
+      @confirm="
+        (name) => {
+          const state = nameDialogState
+          nameDialogState = null
+          if (!state) return
+          if (state.mode === 'createFolder') {
+            void store.createFolder(state.parentPath, name)
+          } else if (state.mode === 'renameNote') {
+            void store.renameNote(state.path, name)
+          } else {
+            void store.renameFolder(state.path, name)
+          }
         }
       "
     />

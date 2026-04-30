@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { PanelLeftClose, PanelLeftOpen, Pin, Plus } from 'lucide-vue-next'
+import { FilePlus2, PanelLeftClose, PanelLeftOpen, Pin } from 'lucide-vue-next'
 import Button from '@/components/ui/button.vue'
 
 defineProps<{
@@ -25,7 +25,7 @@ const MAC_WINDOW_CONTROLS_GAP = 'pl-[78px]'
       <Button
         variant="ghost"
         size="icon"
-        class="h-6 w-6"
+        class="h-6 w-6 hover:bg-[var(--interactive-hover)] hover:text-[var(--foreground)]"
         :aria-label="sidebarCollapsed ? '展开侧边栏' : '折叠侧边栏'"
         @click="emit('toggleSidebar')"
       >
@@ -38,14 +38,14 @@ const MAC_WINDOW_CONTROLS_GAP = 'pl-[78px]'
       <Button
         variant="ghost"
         size="icon"
-        class="h-6 w-6 transition-all duration-200"
+        class="h-6 w-6 transition-all duration-200 hover:bg-[var(--interactive-hover)] hover:text-[var(--foreground)]"
         :disabled="!notesDir || !sidebarCollapsed"
         aria-label="新建笔记"
         title="新建笔记"
         :tabindex="sidebarCollapsed ? 0 : -1"
         @click="emit('createNote')"
       >
-        <Plus :class="['size-3.5', sidebarCollapsed ? 'opacity-100' : 'opacity-0'].join(' ')" />
+        <FilePlus2 :class="['size-3.5', sidebarCollapsed ? 'opacity-100' : 'opacity-0'].join(' ')" />
       </Button>
 
       <Button
@@ -55,8 +55,8 @@ const MAC_WINDOW_CONTROLS_GAP = 'pl-[78px]'
           [
             'h-6 w-6 transition-all duration-200',
             isPinned
-              ? 'bg-[color-mix(in_srgb,var(--primary)_16%,transparent)] text-[var(--primary)] hover:bg-[color-mix(in_srgb,var(--primary)_24%,transparent)] hover:text-[var(--primary)]'
-              : 'text-[var(--muted-foreground)] hover:bg-[color-mix(in_srgb,var(--accent)_72%,transparent)] hover:text-[var(--foreground)]',
+              ? 'bg-[var(--interactive-icon-surface-active)] text-[var(--primary)] hover:bg-[var(--interactive-selected-hover)] hover:text-[var(--primary)]'
+              : 'text-[var(--muted-foreground)] hover:bg-[var(--interactive-hover)] hover:text-[var(--foreground)]',
           ].join(' ')
         "
         :aria-label="isPinned ? '取消置顶' : '置顶窗口'"
@@ -68,4 +68,3 @@ const MAC_WINDOW_CONTROLS_GAP = 'pl-[78px]'
     </div>
   </div>
 </template>
-

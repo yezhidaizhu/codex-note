@@ -13,9 +13,9 @@ const buttonVariants = cva(
         secondary:
           'border border-[color-mix(in_srgb,var(--border)_90%,transparent)] bg-[color-mix(in_srgb,var(--secondary)_88%,transparent)] text-[var(--secondary-foreground)] hover:bg-[color-mix(in_srgb,var(--accent)_92%,transparent)]',
         ghost:
-          'text-[var(--muted-foreground)] hover:bg-[color-mix(in_srgb,var(--accent)_72%,transparent)] hover:text-[var(--foreground)]',
+          'text-[var(--muted-foreground)] hover:bg-[var(--interactive-hover)] hover:text-[var(--foreground)]',
         outline:
-          'border border-[color-mix(in_srgb,var(--border)_90%,transparent)] bg-transparent text-[var(--foreground)] hover:bg-[color-mix(in_srgb,var(--accent)_72%,transparent)]',
+          'border border-[color-mix(in_srgb,var(--border)_90%,transparent)] bg-transparent text-[var(--foreground)] hover:bg-[var(--interactive-hover)]',
       },
       size: {
         default: 'h-8 px-3 py-1.5',
@@ -60,4 +60,3 @@ const mergedClass = computed(() =>
     <slot />
   </button>
 </template>
-

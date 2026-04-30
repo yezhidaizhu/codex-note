@@ -13,7 +13,7 @@ const activeSectionKey = 'general'
 const MAC_WINDOW_CONTROLS_GAP = 'pl-[78px]'
 
 const notesCount = computed(() => store.notes.value.length)
-const hasSelectedNote = computed(() => Boolean(store.selectedBasename.value))
+const hasSelectedNote = computed(() => Boolean(store.selectedPath.value))
 </script>
 
 <template>
@@ -73,8 +73,12 @@ const hasSelectedNote = computed(() => Boolean(store.selectedBasename.value))
           <div class="flex items-start justify-between gap-[var(--space-5)]">
             <div class="min-w-0">
               <p class="text-ui-md font-medium">笔记目录</p>
-              <p class="text-ui-md mt-[var(--space-2)] text-[var(--muted-foreground)]">
-                {{ store.notesDir.value ? '当前已连接一个本地 Markdown 工作区。' : '当前还没有连接本地 Markdown 工作区。' }}
+              <p
+                class="text-ui-md mt-[var(--space-2)] break-all text-[var(--muted-foreground)]"
+                :class="store.notesDir.value ? 'font-mono text-ui-sm' : ''"
+                :title="store.notesDir.value ?? undefined"
+              >
+                {{ store.notesDir.value ?? '当前还没有连接本地 Markdown 工作区。' }}
               </p>
               <div class="text-ui-sm mt-[var(--space-4)] flex items-center gap-[var(--space-5)] text-[var(--muted-foreground)]">
                 <span>{{ notesCount }} 篇笔记</span>

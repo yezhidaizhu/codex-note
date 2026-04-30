@@ -38,8 +38,12 @@ const emit = defineEmits<{
         <div class="flex items-start justify-between gap-[var(--space-5)]">
           <div>
             <p class="text-ui-md font-medium">笔记目录</p>
-            <p class="text-ui-md mt-[var(--space-2)] text-[var(--muted-foreground)]">
-              {{ notesDir ? '当前已连接一个本地 Markdown 工作区。' : '当前还没有连接本地 Markdown 工作区。' }}
+            <p
+              class="text-ui-md mt-[var(--space-2)] break-all text-[var(--muted-foreground)]"
+              :class="notesDir ? 'font-mono text-ui-sm' : ''"
+              :title="notesDir ?? undefined"
+            >
+              {{ notesDir ?? '当前还没有连接本地 Markdown 工作区。' }}
             </p>
             <div class="text-ui-sm mt-[var(--space-4)] flex items-center gap-[var(--space-5)] text-[var(--muted-foreground)]">
               <span>{{ notesCount }} 篇笔记</span>
@@ -56,4 +60,3 @@ const emit = defineEmits<{
     </div>
   </section>
 </template>
-

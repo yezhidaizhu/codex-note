@@ -3,13 +3,12 @@ import Button from '@/components/ui/button.vue'
 
 withDefaults(
   defineProps<{
-    title?: string
+    title: string
     message: string
     confirmLabel?: string
   }>(),
   {
-    title: '删除笔记？',
-    confirmLabel: '删除',
+    confirmLabel: '确认',
   },
 )
 

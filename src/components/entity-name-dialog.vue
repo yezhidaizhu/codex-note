@@ -1,22 +1,38 @@
 <script setup lang="ts">
+import { ref } from 'vue'
 import Button from '@/components/ui/button.vue'
+import Input from '@/components/ui/input.vue'
 
-withDefaults(
+const props = withDefaults(
   defineProps<{
-    title?: string
-    message: string
+    title: string
     confirmLabel?: string
+    initialValue?: string
+    entityType?: 'note' | 'folder'
   }>(),
   {
-    title: '删除笔记？',
-    confirmLabel: '删除',
+    confirmLabel: '确认',
+    initialValue: '',
+    entityType: 'folder',
   },
 )
 
 const emit = defineEmits<{
   (e: 'cancel'): void
-  (e: 'confirm'): void
+  (e: 'confirm', value: string): void
 }>()
+
+const nameValue = ref(props.initialValue)
+
+function onInput(event: Event) {
+  nameValue.value = (event.target as HTMLInputElement).value
+}
+
+function confirm() {
+  const value = nameValue.value.trim()
+  if (!value) return
+  emit('confirm', value)
+}
 </script>
 
 <template>
@@ -25,14 +41,21 @@ const emit = defineEmits<{
       class="w-full max-w-sm rounded-[var(--radius)] border border-[color-mix(in_srgb,var(--border)_84%,transparent)] bg-[color-mix(in_srgb,var(--editor)_94%,white_6%)] p-[var(--space-4)] shadow-[0_14px_36px_rgba(0,0,0,0.28)]"
     >
       <p class="text-ui-md font-medium text-[var(--foreground)]">{{ title }}</p>
-      <p class="text-ui-sm mt-[var(--space-2)] text-[var(--muted-foreground)]">{{ message }}</p>
+      <Input
+        :value="nameValue"
+        class="mt-[var(--space-3)] focus-visible:ring-1 focus-visible:ring-offset-0"
+        :placeholder="entityType === 'note' ? '输入文件名' : '输入目录名'"
+        @input="onInput"
+        @keydown.enter.prevent="confirm"
+      />
       <div class="mt-[var(--space-4)] flex justify-end gap-[var(--space-2)]">
         <Button variant="ghost" size="sm" class="text-ui-sm h-7 px-3 font-normal" @click="emit('cancel')">取消</Button>
         <Button
           variant="secondary"
           size="sm"
-          class="text-ui-sm h-7 px-3 font-normal text-[var(--destructive)] hover:bg-[var(--interactive-hover)]"
-          @click="emit('confirm')"
+          class="text-ui-sm h-7 px-3 font-normal"
+          :disabled="nameValue.trim().length === 0"
+          @click="confirm"
         >
           {{ confirmLabel }}
         </Button>

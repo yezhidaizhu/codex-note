@@ -1,9 +1,18 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import dayjs from 'dayjs'
-import type { NoteListItem as NoteListItemData, NotePayload } from '@/lib/types'
+import type {
+  FolderListItem,
+  MoveFolderResult,
+  NoteListItem as NoteListItemData,
+  NotePayload,
+  NoteTreeResult,
+  RenameFolderResult,
+  SaveNoteResult,
+} from '@/lib/types'
 
 type DraftNote = {
-  basename: string | null
+  path: string | null
+  parentPath: string | null
   content: string
   updatedAt: string | null
 }
@@ -20,8 +29,27 @@ function getNotesApi() {
   return window.notesApi
 }
 
-function emptyDraft(): DraftNote {
-  return { basename: null, content: '', updatedAt: null }
+function normalizePath(pathValue: string | null | undefined): string | null {
+  if (!pathValue) return null
+  const normalized = pathValue
+    .replace(/\\/g, '/')
+    .split('/')
+    .map((segment) => segment.trim())
+    .filter((segment) => segment.length > 0 && segment !== '.')
+  if (normalized.length === 0) return null
+  return normalized.join('/')
+}
+
+function pathParent(pathValue: string | null): string | null {
+  const normalized = normalizePath(pathValue)
+  if (!normalized) return null
+  const segments = normalized.split('/')
+  if (segments.length <= 1) return null
+  return segments.slice(0, -1).join('/')
+}
+
+function emptyDraft(parentPath: string | null = null): DraftNote {
+  return { path: null, parentPath: normalizePath(parentPath), content: '', updatedAt: null }
 }
 
 function getMeaningfulLines(content: string): string[] {
@@ -55,6 +83,32 @@ function inferTitleFromContent(content: string): string {
   return normalizeNoteLabel(firstLine, 'Untitled')
 }
 
+function applyTreeResult(result: NoteTreeResult | SaveNoteResult | { notes: NoteListItemData[]; folders: FolderListItem[] }) {
+  notes.value = result.notes
+  folders.value = result.folders
+  syncExpandedFolders(result.folders)
+}
+
+function replacePathPrefix(pathValue: string | null, sourcePrefix: string, targetPrefix: string): string | null {
+  if (!pathValue) return pathValue
+  if (pathValue === sourcePrefix) return targetPrefix
+  if (!pathValue.startsWith(`${sourcePrefix}/`)) return pathValue
+  return `${targetPrefix}${pathValue.slice(sourcePrefix.length)}`
+}
+
+function syncExpandedFolders(nextFolders: FolderListItem[]) {
+  const previousKnown = new Set(knownFolderPaths.value)
+  const nextKnown = new Set(nextFolders.map((folder) => folder.path))
+  const nextExpanded = new Set(expandedFolderPaths.value.filter((path) => nextKnown.has(path)))
+
+  for (const path of nextKnown) {
+    if (!previousKnown.has(path)) nextExpanded.add(path)
+  }
+
+  knownFolderPaths.value = [...nextKnown]
+  expandedFolderPaths.value = [...nextExpanded]
+}
+
 export function formatCompactDate(value: string | null): string {
   if (!value) return '今天'
 
@@ -80,34 +134,56 @@ export function buildDeleteMessage(count: number, label?: string): string {
   return `将删除 ${count} 篇笔记，这个操作不可撤销。`
 }
 
-// Module-level singleton state (shared across routes).
+export function buildDeleteFolderMessage(folderLabel: string, notesCount: number): string {
+  return `将删除目录「${folderLabel}」及其内容（${notesCount} 篇笔记），这个操作不可撤销。`
+}
+
 const viewReady = ref(false)
 const notesDir = ref<string | null>(null)
 const notes = ref<NoteListItemData[]>([])
+const folders = ref<FolderListItem[]>([])
 const activeNote = ref<DraftNote | null>(null)
-const selectedBasename = ref<string | null>(null)
+const selectedPath = ref<string | null>(null)
 const errorMessage = ref('')
 const query = ref('')
 const sidebarCollapsed = ref(false)
 const sidebarWidth = ref(312)
 const isPinned = ref(false)
+const expandedFolderPaths = ref<string[]>([])
+const knownFolderPaths = ref<string[]>([])
 
-const lastSavedSnapshot = ref<{ basename: string | null; content: string } | null>(null)
+const lastSavedSnapshot = ref<{ path: string | null; content: string } | null>(null)
 let saveInFlight = false
 let queuedSave: DraftNote | null = null
 
 const filteredNotes = computed(() => {
   const keyword = query.value.trim().toLowerCase()
   if (!keyword) return notes.value
-  return notes.value.filter((item) => [item.title, item.preview, item.basename].some((field) => field.toLowerCase().includes(keyword)))
+  return notes.value.filter((item) => [item.title, item.preview, item.path].some((field) => field.toLowerCase().includes(keyword)))
 })
 
-async function openNote(basename: string) {
+function countNotesInFolder(folderPath: string): number {
+  const prefix = `${folderPath}/`
+  return notes.value.filter((item) => item.parentPath === folderPath || item.path.startsWith(prefix)).length
+}
+
+function isPathInsideFolder(pathValue: string | null, folderPath: string): boolean {
+  if (!pathValue) return false
+  return pathValue === folderPath || pathValue.startsWith(`${folderPath}/`)
+}
+
+function toggleFolderExpanded(pathValue: string) {
+  expandedFolderPaths.value = expandedFolderPaths.value.includes(pathValue)
+    ? expandedFolderPaths.value.filter((item) => item !== pathValue)
+    : [...expandedFolderPaths.value, pathValue]
+}
+
+async function openNote(pathValue: string) {
   try {
-    const note = await getNotesApi().readNote(basename)
-    selectedBasename.value = basename
-    lastSavedSnapshot.value = { basename: note.basename, content: note.content }
-    activeNote.value = { basename: note.basename, content: note.content, updatedAt: note.updatedAt }
+    const note = await getNotesApi().readNote(pathValue)
+    selectedPath.value = note.path
+    lastSavedSnapshot.value = { path: note.path, content: note.content }
+    activeNote.value = { path: note.path, parentPath: note.parentPath, content: note.content, updatedAt: note.updatedAt }
     errorMessage.value = ''
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : '打开笔记失败。'
@@ -121,15 +197,17 @@ async function bootOnce() {
     const settings = await getNotesApi().getSettings()
     notesDir.value = settings.notesDir
     notes.value = settings.notes
+    folders.value = settings.folders
+    syncExpandedFolders(settings.folders)
 
     if (settings.notes.length > 0) {
-      await openNote(settings.notes[0].basename)
+      await openNote(settings.notes[0].path)
     } else if (settings.notesDir) {
       activeNote.value = emptyDraft()
-      selectedBasename.value = null
+      selectedPath.value = null
     } else {
       activeNote.value = null
-      selectedBasename.value = null
+      selectedPath.value = null
     }
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : '初始化失败。'
@@ -145,10 +223,12 @@ async function chooseDirectory() {
 
     notesDir.value = result.notesDir
     notes.value = result.notes
+    folders.value = result.folders
+    syncExpandedFolders(result.folders)
     query.value = ''
 
     if (result.notes.length > 0) {
-      await openNote(result.notes[0].basename)
+      await openNote(result.notes[0].path)
     } else {
       createNote()
     }
@@ -157,16 +237,16 @@ async function chooseDirectory() {
   }
 }
 
-function createNote() {
-  selectedBasename.value = null
-  lastSavedSnapshot.value = { basename: null, content: '' }
-  activeNote.value = emptyDraft()
+function createNote(parentPath: string | null = null) {
+  selectedPath.value = null
+  lastSavedSnapshot.value = { path: null, content: '' }
+  activeNote.value = emptyDraft(parentPath)
   errorMessage.value = ''
 }
 
 async function saveNote(noteToSave = activeNote.value) {
   if (!noteToSave || !notesDir.value) return
-  if (!noteToSave.basename && !noteToSave.content.trim()) return
+  if (!noteToSave.path && !noteToSave.content.trim()) return
 
   if (saveInFlight) {
     queuedSave = noteToSave
@@ -179,22 +259,28 @@ async function saveNote(noteToSave = activeNote.value) {
   try {
     const title = inferTitleFromContent(noteToSave.content)
     const result = await getNotesApi().saveNote({
-      currentBasename: noteToSave.basename,
+      currentPath: noteToSave.path,
+      parentPath: noteToSave.path ? pathParent(noteToSave.path) : noteToSave.parentPath,
       title,
       content: noteToSave.content,
     })
 
-    notes.value = result.notes
-    selectedBasename.value = result.note.basename
-    lastSavedSnapshot.value = { basename: result.note.basename, content: noteToSave.content }
+    applyTreeResult(result)
+    selectedPath.value = result.note.path
+    lastSavedSnapshot.value = { path: result.note.path, content: noteToSave.content }
 
-    if (activeNote.value && activeNote.value.basename === noteToSave.basename && activeNote.value.content === noteToSave.content) {
-      activeNote.value = { basename: result.note.basename, content: result.note.content, updatedAt: result.note.updatedAt }
+    if (activeNote.value && activeNote.value.path === noteToSave.path && activeNote.value.content === noteToSave.content) {
+      activeNote.value = {
+        path: result.note.path,
+        parentPath: result.note.parentPath,
+        content: result.note.content,
+        updatedAt: result.note.updatedAt,
+      }
     } else if (activeNote.value) {
-      activeNote.value = { ...activeNote.value, basename: result.note.basename }
+      activeNote.value = { ...activeNote.value, path: result.note.path, parentPath: result.note.parentPath }
     }
 
-    if (queuedSave) queuedSave = { ...queuedSave, basename: result.note.basename }
+    if (queuedSave) queuedSave = { ...queuedSave, path: result.note.path, parentPath: result.note.parentPath }
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : '保存失败。'
   } finally {
@@ -203,27 +289,26 @@ async function saveNote(noteToSave = activeNote.value) {
     queuedSave = null
     if (nextQueued) {
       const snapshot = lastSavedSnapshot.value
-      const alreadySaved = snapshot?.basename === nextQueued.basename && snapshot?.content === nextQueued.content
+      const alreadySaved = snapshot?.path === nextQueued.path && snapshot?.content === nextQueued.content
       if (!alreadySaved) void saveNote(nextQueued)
     }
   }
 }
 
-async function deleteNotesByBasenames(basenames: string[]) {
-  const targets = Array.from(new Set(basenames))
+async function deleteNotesByPaths(paths: string[]) {
+  const targets = Array.from(new Set(paths.map((item) => normalizePath(item)).filter((item): item is string => Boolean(item))))
   if (targets.length === 0) return
 
   try {
-    let nextNotes = notes.value
-    for (const basename of targets) nextNotes = await getNotesApi().deleteNote(basename)
+    let nextTree: NoteTreeResult = { notes: notes.value, folders: folders.value }
+    for (const pathValue of targets) nextTree = await getNotesApi().deleteNote(pathValue)
+    applyTreeResult(nextTree)
 
-    notes.value = nextNotes
-
-    if (selectedBasename.value && targets.includes(selectedBasename.value)) {
-      if (nextNotes.length > 0) {
-        await openNote(nextNotes[0].basename)
+    if (selectedPath.value && targets.includes(selectedPath.value)) {
+      if (nextTree.notes.length > 0) {
+        await openNote(nextTree.notes[0].path)
       } else {
-        selectedBasename.value = null
+        selectedPath.value = null
         activeNote.value = emptyDraft()
       }
     }
@@ -231,6 +316,147 @@ async function deleteNotesByBasenames(basenames: string[]) {
     errorMessage.value = ''
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : '删除失败。'
+  }
+}
+
+async function createFolder(parentPath: string | null, name: string) {
+  if (!notesDir.value) return
+  try {
+    const tree = await getNotesApi().createFolder(parentPath, name)
+    applyTreeResult(tree)
+    errorMessage.value = ''
+  } catch (error) {
+    errorMessage.value = error instanceof Error ? error.message : '创建目录失败。'
+  }
+}
+
+async function deleteFolder(folderPath: string) {
+  if (!notesDir.value) return
+  try {
+    const currentPath = selectedPath.value
+    const tree = await getNotesApi().deleteFolder(folderPath)
+    applyTreeResult(tree)
+
+    if (currentPath && isPathInsideFolder(currentPath, folderPath)) {
+      if (tree.notes.length > 0) {
+        await openNote(tree.notes[0].path)
+      } else {
+        selectedPath.value = null
+        activeNote.value = emptyDraft()
+      }
+    }
+
+    errorMessage.value = ''
+  } catch (error) {
+    errorMessage.value = error instanceof Error ? error.message : '删除目录失败。'
+  }
+}
+
+async function moveNote(pathValue: string, targetFolderPath: string | null) {
+  if (!notesDir.value) return
+  try {
+    const result = await getNotesApi().moveNote(pathValue, targetFolderPath)
+    applyTreeResult(result)
+
+    if (selectedPath.value === pathValue || activeNote.value?.path === pathValue) {
+      selectedPath.value = result.note.path
+      if (activeNote.value) {
+        activeNote.value = { ...activeNote.value, path: result.note.path, parentPath: result.note.parentPath }
+      }
+      if (lastSavedSnapshot.value?.path === pathValue) {
+        lastSavedSnapshot.value = { ...lastSavedSnapshot.value, path: result.note.path }
+      }
+    }
+
+    errorMessage.value = ''
+  } catch (error) {
+    errorMessage.value = error instanceof Error ? error.message : '移动笔记失败。'
+  }
+}
+
+async function moveFolder(folderPath: string, targetFolderPath: string | null) {
+  if (!notesDir.value) return
+  try {
+    const result: MoveFolderResult = await getNotesApi().moveFolder(folderPath, targetFolderPath)
+    applyTreeResult(result)
+    expandedFolderPaths.value = expandedFolderPaths.value.map((path) => replacePathPrefix(path, folderPath, result.path) ?? path)
+
+    if (selectedPath.value) {
+      selectedPath.value = replacePathPrefix(selectedPath.value, folderPath, result.path)
+    }
+
+    if (activeNote.value) {
+      activeNote.value = {
+        ...activeNote.value,
+        path: replacePathPrefix(activeNote.value.path, folderPath, result.path),
+        parentPath: replacePathPrefix(activeNote.value.parentPath, folderPath, result.path),
+      }
+    }
+
+    if (lastSavedSnapshot.value?.path) {
+      lastSavedSnapshot.value = {
+        ...lastSavedSnapshot.value,
+        path: replacePathPrefix(lastSavedSnapshot.value.path, folderPath, result.path),
+      }
+    }
+
+    errorMessage.value = ''
+  } catch (error) {
+    errorMessage.value = error instanceof Error ? error.message : '移动目录失败。'
+  }
+}
+
+async function renameNote(pathValue: string, name: string) {
+  if (!notesDir.value) return
+  try {
+    const result = await getNotesApi().renameNote(pathValue, name)
+    applyTreeResult(result)
+
+    if (selectedPath.value === pathValue || activeNote.value?.path === pathValue) {
+      selectedPath.value = result.note.path
+      if (activeNote.value) {
+        activeNote.value = { ...activeNote.value, path: result.note.path, parentPath: result.note.parentPath }
+      }
+      if (lastSavedSnapshot.value?.path === pathValue) {
+        lastSavedSnapshot.value = { ...lastSavedSnapshot.value, path: result.note.path }
+      }
+    }
+
+    errorMessage.value = ''
+  } catch (error) {
+    errorMessage.value = error instanceof Error ? error.message : '重命名笔记失败。'
+  }
+}
+
+async function renameFolder(folderPath: string, name: string) {
+  if (!notesDir.value) return
+  try {
+    const result: RenameFolderResult = await getNotesApi().renameFolder(folderPath, name)
+    applyTreeResult(result)
+    expandedFolderPaths.value = expandedFolderPaths.value.map((path) => replacePathPrefix(path, folderPath, result.path) ?? path)
+
+    if (selectedPath.value) {
+      selectedPath.value = replacePathPrefix(selectedPath.value, folderPath, result.path)
+    }
+
+    if (activeNote.value) {
+      activeNote.value = {
+        ...activeNote.value,
+        path: replacePathPrefix(activeNote.value.path, folderPath, result.path),
+        parentPath: replacePathPrefix(activeNote.value.parentPath, folderPath, result.path),
+      }
+    }
+
+    if (lastSavedSnapshot.value?.path) {
+      lastSavedSnapshot.value = {
+        ...lastSavedSnapshot.value,
+        path: replacePathPrefix(lastSavedSnapshot.value.path, folderPath, result.path),
+      }
+    }
+
+    errorMessage.value = ''
+  } catch (error) {
+    errorMessage.value = error instanceof Error ? error.message : '重命名目录失败。'
   }
 }
 
@@ -243,7 +469,6 @@ async function togglePinned() {
   }
 }
 
-// Boot + background behaviors (debounced save + remember sidebar collapse)
 let isWired = false
 export function useNotesStore() {
   if (!isWired) {
@@ -263,9 +488,14 @@ export function useNotesStore() {
       ({ note, dir }, _prev, onCleanup) => {
         if (!note || !dir) return
 
-        const currentSnapshot: DraftNote = { basename: note.basename, content: note.content, updatedAt: note.updatedAt }
+        const currentSnapshot: DraftNote = {
+          path: note.path,
+          parentPath: note.parentPath,
+          content: note.content,
+          updatedAt: note.updatedAt,
+        }
         const snapshot = lastSavedSnapshot.value
-        const unchanged = snapshot?.basename === currentSnapshot.basename && snapshot?.content === currentSnapshot.content
+        const unchanged = snapshot?.path === currentSnapshot.path && snapshot?.content === currentSnapshot.content
         if (unchanged) return
 
         const timer = window.setTimeout(() => void saveNote(currentSnapshot), 700)
@@ -274,7 +504,6 @@ export function useNotesStore() {
       { deep: true },
     )
 
-    // Kick boot once when first used.
     onMounted(() => {
       if (!viewReady.value) void bootOnce()
     })
@@ -284,23 +513,32 @@ export function useNotesStore() {
     viewReady,
     notesDir,
     notes,
+    folders,
     filteredNotes,
     activeNote,
-    selectedBasename,
+    selectedPath,
     errorMessage,
     query,
     sidebarCollapsed,
     sidebarWidth,
     isPinned,
+    expandedFolderPaths,
     bootOnce,
     chooseDirectory,
     openNote,
     createNote,
     saveNote,
-    deleteNotesByBasenames,
+    deleteNotesByPaths,
+    createFolder,
+    deleteFolder,
+    moveNote,
+    moveFolder,
+    renameNote,
+    renameFolder,
     togglePinned,
+    toggleFolderExpanded,
+    countNotesInFolder,
   }
 }
 
 export type { DraftNote, NotePayload }
-
