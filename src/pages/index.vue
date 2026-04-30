@@ -109,9 +109,9 @@ const { isSidebarResizing, beginSidebarResize } = useSidebarResize(store)
       />
 
       <main class="flex min-h-0 flex-1 flex-col overflow-hidden bg-transparent">
-        <section v-if="!notesDir" class="flex min-h-0 flex-1 items-center justify-center p-[var(--space-5)]">
+        <section v-if="!notesDir" class="flex min-h-0 flex-1 items-center justify-center p-[var(--content-area-pad)]">
           <div
-            class="w-full max-w-2xl rounded-[var(--radius)] border border-[color-mix(in_srgb,var(--border)_88%,transparent)] bg-[color-mix(in_srgb,var(--card)_20%,transparent)] p-[var(--space-5)]"
+            class="w-full max-w-2xl rounded-[var(--radius)] border border-[color-mix(in_srgb,var(--border)_88%,transparent)] bg-[color-mix(in_srgb,var(--card)_20%,transparent)] p-[var(--panel-pad)]"
           >
             <p class="text-ui-xs uppercase tracking-[0.26em] text-[var(--muted-foreground)]">Start here</p>
             <h3 class="mt-[var(--space-3)] text-3xl font-semibold tracking-tight">先把笔记目录接进来</h3>
@@ -131,15 +131,15 @@ const { isSidebarResizing, beginSidebarResize } = useSidebarResize(store)
           <Textarea
             :ref="noteEditor.bindEditorTextarea"
             :value="activeNote.content"
-            class="scrollbar-thin h-full min-h-0 flex-1 resize-none rounded-none border-0 bg-transparent px-[var(--space-5)] py-[var(--space-5)] text-[15px] leading-8 shadow-none focus-visible:ring-0 placeholder:text-[color-mix(in_srgb,var(--muted-foreground)_52%,transparent)]"
+            class="scrollbar-thin h-full min-h-0 flex-1 resize-none rounded-none border-0 bg-transparent px-[var(--editor-pad-x)] py-[var(--editor-pad-y)] text-[15px] leading-8 shadow-none focus-visible:ring-0 placeholder:text-[color-mix(in_srgb,var(--muted-foreground)_52%,transparent)]"
             placeholder="写点什么"
             @input="noteEditor.onEditorInput"
           />
         </section>
 
-        <section v-else class="flex min-h-0 flex-1 items-center justify-center p-[var(--space-5)]">
+        <section v-else class="flex min-h-0 flex-1 items-center justify-center p-[var(--content-area-pad)]">
           <div
-            class="w-full max-w-xl rounded-[var(--radius)] border border-[color-mix(in_srgb,var(--border)_88%,transparent)] bg-[color-mix(in_srgb,var(--card)_16%,transparent)] p-[var(--space-5)]"
+            class="w-full max-w-xl rounded-[var(--radius)] border border-[color-mix(in_srgb,var(--border)_88%,transparent)] bg-[color-mix(in_srgb,var(--card)_16%,transparent)] p-[var(--panel-pad)]"
           >
             <p class="text-ui-xs uppercase tracking-[0.26em] text-[var(--muted-foreground)]">Ready</p>
             <h3 class="mt-[var(--space-3)] text-2xl font-semibold tracking-tight">选一篇笔记，或者新建一篇</h3>

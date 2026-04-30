@@ -25,20 +25,20 @@ const hasSelectedNote = computed(() => Boolean(selectedPath.value))
 const activeSection = computed(() => sections.find((section) => section.key === activeSectionKey.value) ?? sections[0])
 
 const themeOptions: Array<{ key: AppearanceTheme; label: string; description: string }> = [
-  { key: 'ember', label: 'Ember', description: '当前这套暖橙强调色，适合编辑器氛围。' },
-  { key: 'ocean', label: 'Ocean', description: '更冷静的蓝色强调，层次会更利落。' },
-  { key: 'forest', label: 'Forest', description: '偏绿的柔和强调，视觉更安静。' },
+  { key: 'ember', label: 'Ember', description: '' },
+  { key: 'ocean', label: 'Ocean', description: '' },
+  { key: 'forest', label: 'Forest', description: '' },
 ]
 
 const modeOptions: Array<{ key: AppearanceMode; label: string; description: string }> = [
-  { key: 'system', label: '跟随系统', description: '跟着电脑当前主题走，系统切换明暗时这里会自动更新。' },
-  { key: 'dark', label: '暗色', description: '更聚焦内容，适合长时间编辑与夜间环境。' },
-  { key: 'light', label: '亮色', description: '整体更轻快，适合白天与高亮环境。' },
+  { key: 'system', label: '跟随系统', description: '' },
+  { key: 'dark', label: '暗色', description: '' },
+  { key: 'light', label: '亮色', description: '' },
 ]
 
 const densityOptions: Array<{ key: AppearanceDensity; label: string; description: string }> = [
-  { key: 'comfortable', label: '舒适', description: '保留更多留白，阅读更轻松。' },
-  { key: 'compact', label: '紧凑', description: '压缩列表与工具区间距，信息密度更高。' },
+  { key: 'comfortable', label: '舒适', description: '' },
+  { key: 'compact', label: '紧凑', description: '' },
 ]
 
 function updateMode(mode: AppearanceMode) {
@@ -101,7 +101,7 @@ function updateTransparentBackground(transparentBackground: boolean) {
     </aside>
 
     <main class="flex min-w-0 flex-1 flex-col overflow-hidden">
-      <header class="drag-region flex shrink-0 items-start justify-between gap-[var(--space-5)] border-b border-[var(--separator)] p-[var(--space-5)]">
+      <header class="drag-region flex shrink-0 items-start justify-between gap-[var(--settings-page-gap)] border-b border-[var(--separator)] p-[var(--settings-page-pad)]">
         <div>
           <template v-if="activeSection.key === 'general'">
             <p class="text-ui-xs uppercase tracking-[0.24em] text-[var(--muted-foreground)]">General</p>
@@ -121,7 +121,7 @@ function updateTransparentBackground(transparentBackground: boolean) {
         </div>
       </header>
 
-      <div class="no-drag flex min-h-0 flex-1 flex-col gap-[var(--space-5)] overflow-y-auto p-[var(--space-5)]">
+      <div class="no-drag flex min-h-0 flex-1 flex-col gap-[var(--settings-page-gap)] overflow-y-auto p-[var(--settings-page-pad)]">
         <GeneralSettingsSection
           v-if="activeSection.key === 'general'"
           :notes-dir="notesDir"

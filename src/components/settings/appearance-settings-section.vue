@@ -3,7 +3,7 @@ import { Layers3, Monitor, MoonStar, Palette, SlidersHorizontal, SunMedium } fro
 import { themePresets } from '@/state/notes'
 import type { AppearanceDensity, AppearanceMode, AppearanceSettings, AppearanceTheme } from '@/lib/types'
 
-defineProps<{
+const props = defineProps<{
   appearance: AppearanceSettings
   modeOptions: Array<{ key: AppearanceMode; label: string; description: string }>
   themeOptions: Array<{ key: AppearanceTheme; label: string; description: string }>
@@ -21,143 +21,146 @@ function iconForMode(mode: AppearanceMode) {
   if (mode === 'system') return Monitor
   return mode === 'dark' ? MoonStar : SunMedium
 }
+
+function compactOptionClass(active: boolean) {
+  return [
+    'inline-flex h-8 items-center justify-center gap-[var(--space-1)] rounded-[calc(var(--radius)-0.25rem)] px-2.5 text-ui-xs font-medium transition-colors',
+    active
+      ? 'bg-[var(--interactive-selected)] text-[var(--foreground)]'
+      : 'text-[var(--muted-foreground)] hover:bg-[var(--interactive-hover)] hover:text-[var(--foreground)]',
+  ].join(' ')
+}
+
+const rowDescriptions = {
+  mode: '控制应用整体的明暗外观。',
+  theme: '切换界面的强调色。',
+  transparent: '控制窗口是否保留玻璃透感。',
+  density: '调整列表和编辑区的留白密度。',
+} as const
 </script>
 
 <template>
-  <section>
-    <div class="flex items-start gap-[var(--space-3)]">
-      <span class="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[color-mix(in_srgb,var(--card)_65%,transparent)] text-[var(--primary)]">
-        <Palette class="h-4 w-4" />
-      </span>
+  <section class="space-y-[var(--space-4)]">
+    <div class="min-w-0">
       <div class="min-w-0 flex-1">
-        <p class="text-ui-md font-medium">样式修改</p>
-        <p class="text-ui-md mt-[var(--space-2)] max-w-2xl leading-7 text-[var(--muted-foreground)]">
-          现在可以分别调整明暗模式、主题色、应用背景透明和界面密度，改动会即时应用到编辑器与侧边栏。
+        <div class="flex items-center gap-[var(--space-2)]">
+          <span
+            class="flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-[color-mix(in_srgb,var(--primary)_26%,var(--border))] bg-[color-mix(in_srgb,var(--interactive-selected)_58%,var(--card))] text-[var(--primary)] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]"
+          >
+            <Palette class="h-3.5 w-3.5" />
+          </span>
+          <p class="text-[15px] font-semibold tracking-[0.01em] text-[var(--foreground)]">样式修改</p>
+        </div>
+        <p class="text-ui-sm mt-[var(--space-2)] max-w-2xl leading-6 text-[var(--muted-foreground)]">
+          重大选择保留明显层级，其余选项用更轻的设置行呈现；界面密度会同步影响列表、编辑区和设置页的留白。
         </p>
+      </div>
+    </div>
 
-        <div class="mt-[var(--space-5)]">
+    <div class="rounded-[calc(var(--radius)-0.05rem)] border border-[color-mix(in_srgb,var(--border)_78%,transparent)] bg-[color-mix(in_srgb,var(--card)_18%,transparent)] p-[calc(var(--settings-panel-pad)-0.1rem)]">
+      <div class="grid items-center gap-[var(--space-3)] pt-0 pb-[calc(var(--settings-panel-pad)-0.05rem)] lg:grid-cols-[112px_minmax(0,1fr)] lg:gap-[var(--space-4)]">
+        <div class="min-w-0">
           <div class="flex items-center gap-[var(--space-2)] text-[var(--foreground)]">
             <component :is="iconForMode(appearance.mode)" class="h-4 w-4 text-[var(--muted-foreground)]" />
             <p class="text-ui-sm font-medium">明暗主题</p>
           </div>
-          <div class="mt-[var(--space-3)] grid gap-[var(--space-3)] md:grid-cols-3">
-            <button
-              v-for="option in modeOptions"
-              :key="option.key"
-              type="button"
-              :class="
-                [
-                  'rounded-[calc(var(--radius)-0.05rem)] border px-[var(--space-3)] py-[var(--space-3)] text-left transition',
-                  appearance.mode === option.key
-                    ? 'border-[color-mix(in_srgb,var(--primary)_55%,transparent)] bg-[var(--interactive-selected)] hover:bg-[var(--interactive-selected-hover)]'
-                    : 'border-[color-mix(in_srgb,var(--border)_82%,transparent)] bg-[color-mix(in_srgb,var(--card)_34%,transparent)] hover:bg-[var(--interactive-hover)]',
-                ].join(' ')
-              "
-              @click="emit('updateMode', option.key)"
-            >
-              <div class="flex items-center gap-[var(--space-2)]">
-                <component :is="iconForMode(option.key)" class="h-4 w-4 text-[var(--muted-foreground)]" />
-                <p class="text-ui-sm font-medium text-[var(--foreground)]">{{ option.label }}</p>
-              </div>
-              <p class="text-ui-xs mt-[var(--space-2)] leading-6 text-[var(--muted-foreground)]">{{ option.description }}</p>
-            </button>
+          <p class="text-ui-xs mt-1 text-[var(--muted-foreground)]">{{ rowDescriptions.mode }}</p>
+        </div>
+        <div class="min-w-0">
+          <div class="flex w-full lg:justify-end">
+            <div class="inline-flex w-full max-w-full flex-wrap gap-[var(--space-1)] rounded-[calc(var(--radius)-0.05rem)] border border-[color-mix(in_srgb,var(--border)_82%,transparent)] bg-[color-mix(in_srgb,var(--card)_36%,transparent)] p-1 lg:w-auto">
+              <button
+                v-for="option in modeOptions"
+                :key="option.key"
+                type="button"
+                :class="compactOptionClass(appearance.mode === option.key)"
+                @click="emit('updateMode', option.key)"
+              >
+                <component :is="iconForMode(option.key)" class="h-3.5 w-3.5" />
+                <span>{{ option.label }}</span>
+              </button>
+            </div>
           </div>
         </div>
+      </div>
 
-        <div class="mt-[var(--space-5)]">
+      <div class="grid items-center gap-[var(--space-3)] border-t border-[color-mix(in_srgb,var(--border)_72%,transparent)] py-[calc(var(--settings-panel-pad)-0.05rem)] lg:grid-cols-[112px_minmax(0,1fr)] lg:gap-[var(--space-4)]">
+        <div class="min-w-0">
           <div class="flex items-center gap-[var(--space-2)] text-[var(--foreground)]">
             <Palette class="h-4 w-4 text-[var(--muted-foreground)]" />
             <p class="text-ui-sm font-medium">主题色</p>
           </div>
-          <div class="mt-[var(--space-3)] grid gap-[var(--space-3)] md:grid-cols-3">
-            <button
-              v-for="option in themeOptions"
-              :key="option.key"
-              type="button"
-              :class="
-                [
-                  'rounded-[calc(var(--radius)-0.05rem)] border px-[var(--space-3)] py-[var(--space-3)] text-left transition',
-                  appearance.theme === option.key
-                    ? 'border-[color-mix(in_srgb,var(--primary)_55%,transparent)] bg-[var(--interactive-selected)] hover:bg-[var(--interactive-selected-hover)]'
-                    : 'border-[color-mix(in_srgb,var(--border)_82%,transparent)] bg-[color-mix(in_srgb,var(--card)_34%,transparent)] hover:bg-[var(--interactive-hover)]',
-                ].join(' ')
-              "
-              @click="emit('updateTheme', option.key)"
-            >
-              <div class="flex items-center gap-[var(--space-2)]">
-                <span
-                  class="h-3.5 w-3.5 rounded-full border border-white/10"
-                  :style="{ backgroundColor: themePresets[option.key].primary }"
-                />
-                <p class="text-ui-sm font-medium text-[var(--foreground)]">{{ option.label }}</p>
-              </div>
-              <p class="text-ui-xs mt-[var(--space-2)] leading-6 text-[var(--muted-foreground)]">{{ option.description }}</p>
-            </button>
+          <p class="text-ui-xs mt-1 text-[var(--muted-foreground)]">{{ rowDescriptions.theme }}</p>
+        </div>
+        <div class="min-w-0">
+          <div class="flex w-full lg:justify-end">
+            <div class="inline-flex w-full max-w-full flex-wrap gap-[var(--space-1)] rounded-[calc(var(--radius)-0.05rem)] border border-[color-mix(in_srgb,var(--border)_82%,transparent)] bg-[color-mix(in_srgb,var(--card)_36%,transparent)] p-1 lg:w-auto">
+              <button
+                v-for="option in themeOptions"
+                :key="option.key"
+                type="button"
+                :class="compactOptionClass(appearance.theme === option.key)"
+                @click="emit('updateTheme', option.key)"
+              >
+                <span class="h-2 w-2 rounded-full" :style="{ backgroundColor: themePresets[option.key].primary }" />
+                <span>{{ option.label }}</span>
+              </button>
+            </div>
           </div>
         </div>
+      </div>
 
-        <div class="mt-[var(--space-5)]">
+      <div class="grid items-center gap-[var(--space-3)] border-t border-[color-mix(in_srgb,var(--border)_72%,transparent)] py-[calc(var(--settings-panel-pad)-0.05rem)] lg:grid-cols-[112px_minmax(0,1fr)] lg:gap-[var(--space-4)]">
+        <div class="min-w-0">
           <div class="flex items-center gap-[var(--space-2)] text-[var(--foreground)]">
             <Layers3 class="h-4 w-4 text-[var(--muted-foreground)]" />
-            <p class="text-ui-sm font-medium">应用背景透明</p>
+            <p class="text-ui-sm font-medium">背景透明</p>
           </div>
-          <div class="mt-[var(--space-3)] grid gap-[var(--space-3)] md:grid-cols-2">
-            <button
-              type="button"
-              :class="
-                [
-                  'rounded-[calc(var(--radius)-0.05rem)] border px-[var(--space-3)] py-[var(--space-3)] text-left transition',
-                  appearance.transparentBackground
-                    ? 'border-[color-mix(in_srgb,var(--primary)_55%,transparent)] bg-[var(--interactive-selected)] hover:bg-[var(--interactive-selected-hover)]'
-                    : 'border-[color-mix(in_srgb,var(--border)_82%,transparent)] bg-[color-mix(in_srgb,var(--card)_34%,transparent)] hover:bg-[var(--interactive-hover)]',
-                ].join(' ')
-              "
-              @click="emit('updateTransparentBackground', true)"
-            >
-              <p class="text-ui-sm font-medium text-[var(--foreground)]">开启</p>
-              <p class="text-ui-xs mt-[var(--space-2)] leading-6 text-[var(--muted-foreground)]">窗口底部会透出背后的应用，并保留玻璃模糊感。</p>
-            </button>
-            <button
-              type="button"
-              :class="
-                [
-                  'rounded-[calc(var(--radius)-0.05rem)] border px-[var(--space-3)] py-[var(--space-3)] text-left transition',
-                  !appearance.transparentBackground
-                    ? 'border-[color-mix(in_srgb,var(--primary)_55%,transparent)] bg-[var(--interactive-selected)] hover:bg-[var(--interactive-selected-hover)]'
-                    : 'border-[color-mix(in_srgb,var(--border)_82%,transparent)] bg-[color-mix(in_srgb,var(--card)_34%,transparent)] hover:bg-[var(--interactive-hover)]',
-                ].join(' ')
-              "
-              @click="emit('updateTransparentBackground', false)"
-            >
-              <p class="text-ui-sm font-medium text-[var(--foreground)]">关闭</p>
-              <p class="text-ui-xs mt-[var(--space-2)] leading-6 text-[var(--muted-foreground)]">窗口底改成实体背景，不再透出后面的应用。</p>
-            </button>
+          <p class="text-ui-xs mt-1 text-[var(--muted-foreground)]">{{ rowDescriptions.transparent }}</p>
+        </div>
+        <div class="min-w-0">
+          <div class="flex w-full lg:justify-end">
+            <div class="inline-flex w-full max-w-full gap-[var(--space-1)] rounded-[calc(var(--radius)-0.05rem)] border border-[color-mix(in_srgb,var(--border)_82%,transparent)] bg-[color-mix(in_srgb,var(--card)_36%,transparent)] p-1 sm:w-auto">
+              <button
+                type="button"
+                :class="compactOptionClass(appearance.transparentBackground)"
+                @click="emit('updateTransparentBackground', true)"
+              >
+                开启
+              </button>
+              <button
+                type="button"
+                :class="compactOptionClass(!appearance.transparentBackground)"
+                @click="emit('updateTransparentBackground', false)"
+              >
+                关闭
+              </button>
+            </div>
           </div>
         </div>
+      </div>
 
-        <div class="mt-[var(--space-5)]">
+      <div class="grid items-center gap-[var(--space-3)] border-t border-[color-mix(in_srgb,var(--border)_72%,transparent)] py-[calc(var(--settings-panel-pad)-0.05rem)] lg:grid-cols-[112px_minmax(0,1fr)] lg:gap-[var(--space-4)]">
+        <div class="min-w-0">
           <div class="flex items-center gap-[var(--space-2)] text-[var(--foreground)]">
             <SlidersHorizontal class="h-4 w-4 text-[var(--muted-foreground)]" />
             <p class="text-ui-sm font-medium">界面密度</p>
           </div>
-          <div class="mt-[var(--space-3)] grid gap-[var(--space-3)] md:grid-cols-2">
-            <button
-              v-for="option in densityOptions"
-              :key="option.key"
-              type="button"
-              :class="
-                [
-                  'rounded-[calc(var(--radius)-0.05rem)] border px-[var(--space-3)] py-[var(--space-3)] text-left transition',
-                  appearance.density === option.key
-                    ? 'border-[color-mix(in_srgb,var(--primary)_55%,transparent)] bg-[var(--interactive-selected)] hover:bg-[var(--interactive-selected-hover)]'
-                    : 'border-[color-mix(in_srgb,var(--border)_82%,transparent)] bg-[color-mix(in_srgb,var(--card)_34%,transparent)] hover:bg-[var(--interactive-hover)]',
-                ].join(' ')
-              "
-              @click="emit('updateDensity', option.key)"
-            >
-              <p class="text-ui-sm font-medium text-[var(--foreground)]">{{ option.label }}</p>
-              <p class="text-ui-xs mt-[var(--space-2)] leading-6 text-[var(--muted-foreground)]">{{ option.description }}</p>
-            </button>
+          <p class="text-ui-xs mt-1 text-[var(--muted-foreground)]">{{ rowDescriptions.density }}</p>
+        </div>
+        <div class="min-w-0">
+          <div class="flex w-full lg:justify-end">
+            <div class="inline-flex w-full max-w-full gap-[var(--space-1)] rounded-[calc(var(--radius)-0.05rem)] border border-[color-mix(in_srgb,var(--border)_82%,transparent)] bg-[color-mix(in_srgb,var(--card)_36%,transparent)] p-1 sm:w-auto">
+              <button
+                v-for="option in densityOptions"
+                :key="option.key"
+                type="button"
+                :class="compactOptionClass(appearance.density === option.key)"
+                @click="emit('updateDensity', option.key)"
+              >
+                {{ option.label }}
+              </button>
+            </div>
           </div>
         </div>
       </div>

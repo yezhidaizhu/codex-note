@@ -120,7 +120,7 @@ function onRootDrop() {
 </script>
 
 <template>
-  <div v-if="isSearching && filteredNotes.length === 0" class="px-[var(--space-3)] pb-[var(--space-3)]">
+  <div v-if="isSearching && filteredNotes.length === 0" class="px-[var(--tree-list-pad-x)] pb-[var(--tree-list-pad-bottom)]">
     <div
       class="rounded-[var(--radius)] border border-dashed border-[color-mix(in_srgb,var(--border)_85%,transparent)] bg-[color-mix(in_srgb,var(--card)_42%,transparent)] p-[var(--space-4)] text-sm text-[var(--muted-foreground)]"
     >
@@ -129,10 +129,7 @@ function onRootDrop() {
     </div>
   </div>
 
-  <div
-    v-else-if="!isSearching && rootFolders.length === 0 && rootNotes.length === 0"
-    class="px-[var(--space-3)] pb-[var(--space-3)]"
-  >
+  <div v-else-if="!isSearching && rootFolders.length === 0 && rootNotes.length === 0" class="px-[var(--tree-list-pad-x)] pb-[var(--tree-list-pad-bottom)]">
     <div
       class="rounded-[var(--radius)] border border-dashed border-[color-mix(in_srgb,var(--border)_85%,transparent)] bg-[color-mix(in_srgb,var(--card)_42%,transparent)] p-[var(--space-4)] text-sm text-[var(--muted-foreground)]"
     >
@@ -144,9 +141,10 @@ function onRootDrop() {
   <div
     v-else
     :class="[
-      'scrollbar-thin flex min-h-0 flex-1 flex-col gap-[2px] overflow-y-auto rounded-[calc(var(--radius)-0.2rem)] px-[var(--space-2)] pb-[var(--space-2)] transition-colors duration-150',
+      'scrollbar-thin flex min-h-0 flex-1 flex-col overflow-y-auto rounded-[calc(var(--radius)-0.2rem)] px-[var(--tree-list-pad-x)] pb-[var(--tree-list-pad-bottom)] transition-colors duration-150',
       rootDropActive ? 'bg-[var(--tree-item-selected)]' : '',
     ]"
+    :style="{ gap: 'var(--tree-list-gap)' }"
     @dragover="onRootDragOver"
     @dragleave="rootDropActive = false"
     @drop.prevent="onRootDrop"
@@ -208,7 +206,7 @@ function onRootDrop() {
         "
       />
 
-      <div v-if="rootNotes.length > 0" class="flex flex-col gap-[2px]">
+      <div v-if="rootNotes.length > 0" class="flex flex-col" :style="{ gap: 'var(--tree-list-gap)' }">
         <NoteListItem
           v-for="note in rootNotes"
           :key="note.path"

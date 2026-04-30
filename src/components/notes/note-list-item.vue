@@ -61,10 +61,11 @@ function handleClick() {
     data-note-item="true"
     :class="
       cn(
-        'h-auto w-full items-start justify-start rounded-[calc(var(--radius)-0.2rem)] px-[var(--space-2)] py-[0.4rem] text-left hover:text-[var(--foreground)]',
+        'h-auto w-full items-start justify-start rounded-[calc(var(--radius)-0.2rem)] px-[var(--tree-item-pad-x)] py-[var(--tree-item-pad-y)] text-left hover:text-[var(--foreground)]',
         rowClass(),
       )
     "
+    :style="{ minHeight: 'var(--tree-item-min-height)' }"
     @click="handleClick"
     @contextmenu.prevent="emit('contextMenu', $event)"
     :draggable="draggable"
@@ -91,7 +92,8 @@ function handleClick() {
         <span v-else class="h-[var(--tree-chevron-slot)] w-[var(--tree-chevron-slot)] shrink-0" aria-hidden="true" />
 
         <span
-          :class="cn('flex h-6 w-6 shrink-0 items-center justify-center rounded-md transition-colors', iconClass())"
+          :class="cn('flex shrink-0 items-center justify-center rounded-md transition-colors', iconClass())"
+          :style="{ width: 'var(--tree-item-icon-size)', height: 'var(--tree-item-icon-size)' }"
           aria-hidden="true"
         >
           <FileText class="h-3.5 w-3.5" />

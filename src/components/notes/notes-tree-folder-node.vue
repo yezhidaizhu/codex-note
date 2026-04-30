@@ -101,7 +101,8 @@ function iconClass() {
   >
     <div
       data-folder-item="true"
-      :class="cn('flex min-h-9 w-full items-center gap-[var(--tree-branch-gap)] rounded-[calc(var(--radius)-0.2rem)] px-[var(--space-2)] py-[0.4rem] text-[var(--foreground)] transition-[background-color,color] duration-200', rowClass())"
+      :class="cn('flex w-full items-center gap-[var(--tree-branch-gap)] rounded-[calc(var(--radius)-0.2rem)] px-[var(--tree-item-pad-x)] py-[var(--tree-item-pad-y)] text-[var(--foreground)] transition-[background-color,color] duration-200', rowClass())"
+      :style="{ minHeight: 'var(--tree-item-min-height)' }"
       draggable="true"
       @click="emit('toggleFolderExpanded', folder.path)"
       @contextmenu.prevent="
@@ -124,7 +125,11 @@ function iconClass() {
         />
       </button>
 
-      <span :class="cn('flex h-6 w-6 shrink-0 items-center justify-center rounded-md transition-colors', iconClass())" aria-hidden="true">
+      <span
+        :class="cn('flex shrink-0 items-center justify-center rounded-md transition-colors', iconClass())"
+        :style="{ width: 'var(--tree-item-icon-size)', height: 'var(--tree-item-icon-size)' }"
+        aria-hidden="true"
+      >
         <FolderOpen v-if="expandedFolderPaths.includes(folder.path)" class="h-4 w-4" />
         <Folder v-else class="h-4 w-4" />
       </span>
@@ -134,7 +139,8 @@ function iconClass() {
 
     <div
       v-if="expandedFolderPaths.includes(folder.path)"
-      class="ml-[var(--tree-guide-offset)] flex flex-col gap-[2px] border-l border-[var(--tree-item-guide)] pl-[var(--tree-guide-padding)]"
+      class="ml-[var(--tree-guide-offset)] flex flex-col border-l border-[var(--tree-item-guide)] pl-[var(--tree-guide-padding)]"
+      :style="{ gap: 'var(--tree-list-gap)' }"
     >
       <NotesTreeFolderNode
         v-for="childFolder in foldersByParent[folder.path] ?? []"
