@@ -52,7 +52,7 @@ type MoveFolderResult = {
 const NOTE_TITLE_MAX_LENGTH = 36
 const EXPANDED_MIN_WIDTH = 600
 const COLLAPSED_MIN_WIDTH = 300
-const DEFAULT_COLLAPSED_WIDTH = 380
+const DEFAULT_COLLAPSED_WIDTH = 480
 
 const defaultSettings: StoredSettings = {
   notesDir: null

@@ -72,7 +72,7 @@ function handleClick() {
     @dragend="emit('dragEnd')"
   >
     <div class="flex w-full items-center justify-between gap-[var(--space-2)]">
-      <div class="flex min-w-0 flex-1 items-center gap-[var(--space-2)]">
+      <div class="flex min-w-0 flex-1 items-center gap-[var(--tree-branch-gap)]">
         <span
           v-if="selectionMode"
           :class="
@@ -88,7 +88,7 @@ function handleClick() {
           <span class="text-[10px] leading-none">✓</span>
         </span>
 
-        <span v-else class="h-5 w-5 shrink-0" aria-hidden="true" />
+        <span v-else class="h-[var(--tree-chevron-slot)] w-[var(--tree-chevron-slot)] shrink-0" aria-hidden="true" />
 
         <span
           :class="cn('flex h-6 w-6 shrink-0 items-center justify-center rounded-md transition-colors', iconClass())"

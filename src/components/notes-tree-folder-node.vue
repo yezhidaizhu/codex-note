@@ -94,14 +94,14 @@ function iconClass() {
 <template>
   <div
     :class="cn('rounded-[calc(var(--radius)-0.15rem)] transition-colors duration-150', dropTargetFolderPath === folder.path ? 'bg-[var(--tree-item-selected)]' : '')"
-    :style="{ marginLeft: `${depth * 12}px` }"
+    :style="{ marginLeft: `calc(${depth} * var(--tree-indent-step))` }"
     @dragover.prevent.stop="onFolderDragOver"
     @dragleave.stop="emit('clearDropTarget')"
     @drop.prevent.stop="onFolderDrop"
   >
     <div
       data-folder-item="true"
-      :class="cn('flex min-h-9 w-full items-center gap-[var(--space-2)] rounded-[calc(var(--radius)-0.2rem)] px-[var(--space-2)] py-[0.4rem] text-[var(--foreground)] transition-[background-color,color] duration-200', rowClass())"
+      :class="cn('flex min-h-9 w-full items-center gap-[var(--tree-branch-gap)] rounded-[calc(var(--radius)-0.2rem)] px-[var(--space-2)] py-[0.4rem] text-[var(--foreground)] transition-[background-color,color] duration-200', rowClass())"
       draggable="true"
       @click="emit('toggleFolderExpanded', folder.path)"
       @contextmenu.prevent="
@@ -115,7 +115,7 @@ function iconClass() {
     >
       <button
         type="button"
-        class="flex h-5 w-5 shrink-0 items-center justify-center rounded text-[var(--muted-foreground)] hover:bg-[var(--sidebar-hover-strong)]"
+        class="flex h-[var(--tree-chevron-slot)] w-[var(--tree-chevron-slot)] shrink-0 items-center justify-center rounded text-[var(--muted-foreground)] hover:bg-[var(--sidebar-hover-strong)]"
         tabindex="-1"
         aria-hidden="true"
       >
@@ -134,7 +134,7 @@ function iconClass() {
 
     <div
       v-if="expandedFolderPaths.includes(folder.path)"
-      class="ml-[22px] flex flex-col gap-[2px] border-l border-[var(--tree-item-guide)] pl-[var(--space-2)]"
+      class="ml-[var(--tree-guide-offset)] flex flex-col gap-[2px] border-l border-[var(--tree-item-guide)] pl-[var(--tree-guide-padding)]"
     >
       <NotesTreeFolderNode
         v-for="childFolder in foldersByParent[folder.path] ?? []"

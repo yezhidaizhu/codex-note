@@ -74,6 +74,11 @@
   --tree-item-icon-active: var(--interactive-icon-surface-active);
   --tree-item-chevron-hover: var(--sidebar-hover-strong);
   --tree-item-guide: color-mix(in srgb, var(--border) 68%, transparent);
+  --tree-indent-step: 10px;
+  --tree-branch-gap: 0.375rem;
+  --tree-guide-offset: 0.75rem;
+  --tree-guide-padding: 0.375rem;
+  --tree-chevron-slot: 1rem;
 }
 
 * {
