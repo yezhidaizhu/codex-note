@@ -36,9 +36,9 @@ function confirm() {
 </script>
 
 <template>
-  <div class="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(10,16,29,0.38)] p-[var(--space-4)] backdrop-blur-[2px]">
+  <div class="fixed inset-0 z-50 flex items-center justify-center bg-[var(--overlay-backdrop)] p-[var(--space-4)] backdrop-blur-[2px]">
     <div
-      class="w-full max-w-sm rounded-[var(--radius)] border border-[color-mix(in_srgb,var(--border)_84%,transparent)] bg-[color-mix(in_srgb,var(--editor)_94%,white_6%)] p-[var(--space-4)] shadow-[0_14px_36px_rgba(0,0,0,0.28)]"
+      class="w-full max-w-sm rounded-[var(--radius)] border border-[color-mix(in_srgb,var(--border)_84%,transparent)] bg-[color-mix(in_srgb,var(--editor)_94%,white_6%)] p-[var(--space-4)] shadow-[0_14px_36px_var(--dialog-shadow)]"
     >
       <p class="text-ui-md font-medium text-[var(--foreground)]">{{ title }}</p>
       <Input

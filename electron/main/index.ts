@@ -5,6 +5,11 @@ import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, nativeTheme, Tr
 
 type StoredSettings = {
   notesDir: string | null
+  appearance: {
+    mode: 'system' | 'dark' | 'light'
+    theme: 'ember' | 'ocean' | 'forest'
+    density: 'comfortable' | 'compact'
+  }
 }
 
 type NoteListItem = {
@@ -55,7 +60,12 @@ const COLLAPSED_MIN_WIDTH = 300
 const DEFAULT_COLLAPSED_WIDTH = 480
 
 const defaultSettings: StoredSettings = {
-  notesDir: null
+  notesDir: null,
+  appearance: {
+    mode: 'system',
+    theme: 'ember',
+    density: 'comfortable'
+  }
 }
 
 let mainWindow: BrowserWindow | null = null
@@ -68,6 +78,10 @@ const currentDir = dirname(fileURLToPath(import.meta.url))
 const appIconPath = join(currentDir, '../../resources/icon.png')
 const trayTemplateIconPath = join(currentDir, '../../resources/trayTemplate.png')
 const trayTemplateIcon2xPath = join(currentDir, '../../resources/trayTemplate@2x.png')
+
+function currentSystemAppearance(): 'dark' | 'light' {
+  return nativeTheme.shouldUseDarkColors ? 'dark' : 'light'
+}
 
 function restoreWindow(): void {
   if (!mainWindow || mainWindow.isDestroyed()) {
@@ -214,8 +228,11 @@ async function readSettings(): Promise<StoredSettings> {
     const content = await readFile(settingsPath(), 'utf8')
     const parsed = JSON.parse(content) as Partial<StoredSettings>
     return {
-      ...defaultSettings,
-      ...parsed
+      notesDir: parsed.notesDir ?? defaultSettings.notesDir,
+      appearance: {
+        ...defaultSettings.appearance,
+        ...(parsed.appearance ?? {})
+      }
     }
   } catch {
     return defaultSettings
@@ -529,6 +546,14 @@ app.whenReady().then(() => {
   createTray()
   createWindow()
 
+  nativeTheme.on('updated', () => {
+    if (!mainWindow || mainWindow.isDestroyed()) {
+      return
+    }
+
+    mainWindow.webContents.send('system-appearance:changed', currentSystemAppearance())
+  })
+
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow()
@@ -553,7 +578,8 @@ ipcMain.handle('settings:get', async () => {
   return {
     ...settings,
     notes: noteTree.notes,
-    folders: noteTree.folders
+    folders: noteTree.folders,
+    appearance: settings.appearance
   }
 })
 
@@ -571,15 +597,34 @@ ipcMain.handle('notes:choose-directory', async () => {
 
   const notesDir = result.filePaths[0]
   await ensureDir(notesDir)
-  await writeSettings({ notesDir })
+  await writeSettings({ ...current, notesDir })
   const noteTree = await listNotesTree(notesDir)
 
   return {
     notesDir,
     notes: noteTree.notes,
-    folders: noteTree.folders
+    folders: noteTree.folders,
+    appearance: current.appearance ?? defaultSettings.appearance
   }
 })
+
+ipcMain.handle('settings:update-appearance', async (_event, appearance: StoredSettings['appearance']) => {
+  const current = await readSettings()
+  const nextAppearance = {
+    mode: appearance.mode ?? current.appearance.mode,
+    theme: appearance.theme ?? current.appearance.theme,
+    density: appearance.density ?? current.appearance.density
+  }
+
+  await writeSettings({
+    ...current,
+    appearance: nextAppearance
+  })
+
+  return nextAppearance
+})
+
+ipcMain.handle('system:get-appearance', async () => currentSystemAppearance())
 
 ipcMain.handle('notes:list', async () => {
   const notesDir = await getNotesDirOrThrow()

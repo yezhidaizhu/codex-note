@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import NoteListItem from '@/components/note-list-item.vue'
-import NotesTreeFolderNode from '@/components/notes-tree-folder-node.vue'
+import NoteListItem from '@/components/notes/note-list-item.vue'
+import NotesTreeFolderNode from '@/components/notes/notes-tree-folder-node.vue'
 import { formatCompactDate, getListLabel } from '@/state/notes'
 import type { FolderListItem as FolderListItemData, NoteListItem as NoteListItemData } from '@/lib/types'
 

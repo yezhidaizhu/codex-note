@@ -1,3 +1,15 @@
+export type AppearanceTheme = 'ember' | 'ocean' | 'forest'
+
+export type AppearanceMode = 'system' | 'dark' | 'light'
+
+export type AppearanceDensity = 'comfortable' | 'compact'
+
+export type AppearanceSettings = {
+  mode: AppearanceMode
+  theme: AppearanceTheme
+  density: AppearanceDensity
+}
+
 export type NoteListItem = {
   path: string
   name: string
@@ -27,6 +39,7 @@ export type AppSettings = {
   notesDir: string | null
   notes: NoteListItem[]
   folders: FolderListItem[]
+  appearance: AppearanceSettings
 }
 
 export type SaveNoteResult = {

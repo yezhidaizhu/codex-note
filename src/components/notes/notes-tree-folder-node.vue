@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ChevronRight, Folder, FolderOpen } from 'lucide-vue-next'
-import NoteListItem from '@/components/note-list-item.vue'
+import NoteListItem from '@/components/notes/note-list-item.vue'
 import { cn } from '@/lib/utils'
 import { formatCompactDate, getListLabel } from '@/state/notes'
 import type { FolderListItem as FolderListItemData, NoteListItem as NoteListItemData } from '@/lib/types'

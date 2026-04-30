@@ -25,9 +25,9 @@
     "tailwindcss": "^4.2.2",
     "typescript": "^6.0.3",
     "vite": "^8.0.8",
-    "vite-plugin-pages": "^0.33.1",
     "vite-plugin-electron": "^0.29.1",
     "vite-plugin-electron-renderer": "^0.14.6",
+    "vite-plugin-pages": "^0.33.1",
     "vue-tsc": "^3.0.0"
   },
   "packageManager": "pnpm@9.15.2+sha512.93e57b0126f0df74ce6bff29680394c0ba54ec47246b9cf321f0121d8d9bb03f750a705f24edc3c1180853afd7c2c3b94196d0a3d53d3e069d9e2793ef11f321",
@@ -36,6 +36,7 @@
     "clsx": "^2.1.1",
     "dayjs": "^1.11.20",
     "lucide-vue-next": "^0.542.0",
+    "pinia": "^3.0.4",
     "tailwind-merge": "^3.5.0",
     "vue": "^3.5.0",
     "vue-router": "^4.5.0"

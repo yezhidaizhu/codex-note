@@ -1,11 +1,13 @@
 /// <reference types="vite/client" />
 
-import type { AppSettings, MoveFolderResult, NotePayload, NoteTreeResult, RenameFolderResult, SaveNoteResult } from '@/lib/types'
+import type { AppSettings, AppearanceSettings, MoveFolderResult, NotePayload, NoteTreeResult, RenameFolderResult, SaveNoteResult } from '@/lib/types'
 
 declare global {
   interface Window {
     notesApi?: {
       getSettings: () => Promise<AppSettings>
+      getSystemAppearance: () => Promise<'dark' | 'light'>
+      onSystemAppearanceChange: (listener: (mode: 'dark' | 'light') => void) => () => void
       chooseDirectory: () => Promise<AppSettings | null>
       listNotes: () => Promise<NoteTreeResult>
       readNote: (path: string) => Promise<NotePayload>
@@ -17,6 +19,7 @@ declare global {
       moveFolder: (path: string, targetFolderPath: string | null) => Promise<MoveFolderResult>
       renameNote: (path: string, name: string) => Promise<SaveNoteResult>
       renameFolder: (path: string, name: string) => Promise<RenameFolderResult>
+      updateAppearance: (appearance: AppearanceSettings) => Promise<AppearanceSettings>
       setSidebarCollapsed: (collapsed: boolean) => Promise<void>
       getWindowState: () => Promise<{ isAlwaysOnTop: boolean }>
       setAlwaysOnTop: (pinned: boolean) => Promise<{ isAlwaysOnTop: boolean }>

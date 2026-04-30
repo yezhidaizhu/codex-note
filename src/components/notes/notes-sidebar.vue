@@ -2,7 +2,7 @@
 import { Cog, FilePlus2, FolderPlus, MoreHorizontal, Search, Trash2 } from 'lucide-vue-next'
 import Button from '@/components/ui/button.vue'
 import Input from '@/components/ui/input.vue'
-import NotesTreeList from '@/components/notes-tree-list.vue'
+import NotesTreeList from '@/components/notes/notes-tree-list.vue'
 import type { FolderListItem as FolderListItemData, NoteListItem as NoteListItemData } from '@/lib/types'
 
 defineProps<{
@@ -50,7 +50,7 @@ function onQueryInput(event: Event) {
       [
         'relative flex min-h-0 shrink-0 flex-col overflow-hidden bg-transparent',
         isSidebarResizing ? 'transition-none' : 'transition-[width,border-color,opacity] duration-300 ease-out',
-        sidebarCollapsed ? 'border-r border-transparent opacity-0' : 'border-r border-[color-mix(in_srgb,white_8%,transparent)] opacity-100',
+        sidebarCollapsed ? 'border-r border-transparent opacity-0' : 'border-r border-[var(--separator)] opacity-100',
       ].join(' ')
     "
     :style="{ width: sidebarCollapsed ? '0px' : `${sidebarWidth}px` }"
@@ -135,7 +135,7 @@ function onQueryInput(event: Event) {
 
           <div
             v-if="listActionsMenuOpen"
-            class="absolute right-0 top-[calc(100%+0.35rem)] z-30 min-w-[132px] rounded-[calc(var(--radius)-0.1rem)] border border-[color-mix(in_srgb,var(--border)_92%,transparent)] bg-[color-mix(in_srgb,var(--card)_96%,transparent)] p-1 shadow-[0_12px_28px_rgba(0,0,0,0.45)] backdrop-blur"
+            class="absolute right-0 top-[calc(100%+0.35rem)] z-30 min-w-[132px] rounded-[calc(var(--radius)-0.1rem)] border border-[color-mix(in_srgb,var(--border)_92%,transparent)] bg-[color-mix(in_srgb,var(--card)_96%,transparent)] p-1 shadow-[0_12px_28px_var(--popup-shadow)] backdrop-blur"
             @click.stop
           >
             <button

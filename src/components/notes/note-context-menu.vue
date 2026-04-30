@@ -19,7 +19,7 @@ const emit = defineEmits<{
 
 <template>
   <div
-    class="fixed z-50 min-w-[152px] rounded-[calc(var(--radius)-0.1rem)] border border-[color-mix(in_srgb,var(--border)_92%,transparent)] bg-[color-mix(in_srgb,var(--card)_96%,transparent)] p-1 shadow-[0_12px_28px_rgba(0,0,0,0.45)] backdrop-blur"
+    class="fixed z-50 min-w-[152px] rounded-[calc(var(--radius)-0.1rem)] border border-[color-mix(in_srgb,var(--border)_92%,transparent)] bg-[color-mix(in_srgb,var(--card)_96%,transparent)] p-1 shadow-[0_12px_28px_var(--popup-shadow)] backdrop-blur"
     :style="{ left: `${x}px`, top: `${y}px` }"
     @click.stop
   >

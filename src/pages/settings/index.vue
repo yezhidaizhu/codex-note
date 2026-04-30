@@ -1,32 +1,70 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import { ChevronLeft, FolderOpen, Settings2 } from 'lucide-vue-next'
+import { computed, ref } from 'vue'
+import { ChevronLeft, Settings2 } from 'lucide-vue-next'
+import { storeToRefs } from 'pinia'
 import { useRouter } from 'vue-router'
 import Button from '@/components/ui/button.vue'
+import AppearanceSettingsSection from '@/components/settings/appearance-settings-section.vue'
+import GeneralSettingsSection from '@/components/settings/general-settings-section.vue'
 import { useNotesStore } from '@/state/notes'
+import type { AppearanceDensity, AppearanceMode, AppearanceTheme } from '@/lib/types'
 
 const router = useRouter()
 const store = useNotesStore()
+const { notes, selectedPath, appearance, notesDir } = storeToRefs(store)
 
-const sections = [{ key: 'general', label: '通用' }] as const
-const activeSectionKey = 'general'
+const sections = [
+  { key: 'general', label: '通用' },
+  { key: 'appearance', label: '外观' },
+] as const
+const activeSectionKey = ref<(typeof sections)[number]['key']>('general')
 const MAC_WINDOW_CONTROLS_GAP = 'pl-[78px]'
 
-const notesCount = computed(() => store.notes.value.length)
-const hasSelectedNote = computed(() => Boolean(store.selectedPath.value))
+const notesCount = computed(() => notes.value.length)
+const hasSelectedNote = computed(() => Boolean(selectedPath.value))
+const activeSection = computed(() => sections.find((section) => section.key === activeSectionKey.value) ?? sections[0])
+
+const themeOptions: Array<{ key: AppearanceTheme; label: string; description: string }> = [
+  { key: 'ember', label: 'Ember', description: '当前这套暖橙强调色，适合编辑器氛围。' },
+  { key: 'ocean', label: 'Ocean', description: '更冷静的蓝色强调，层次会更利落。' },
+  { key: 'forest', label: 'Forest', description: '偏绿的柔和强调，视觉更安静。' },
+]
+
+const modeOptions: Array<{ key: AppearanceMode; label: string; description: string }> = [
+  { key: 'system', label: '跟随系统', description: '跟着电脑当前主题走，系统切换明暗时这里会自动更新。' },
+  { key: 'dark', label: '暗色', description: '更聚焦内容，适合长时间编辑与夜间环境。' },
+  { key: 'light', label: '亮色', description: '整体更轻快，适合白天与高亮环境。' },
+]
+
+const densityOptions: Array<{ key: AppearanceDensity; label: string; description: string }> = [
+  { key: 'comfortable', label: '舒适', description: '保留更多留白，阅读更轻松。' },
+  { key: 'compact', label: '紧凑', description: '压缩列表与工具区间距，信息密度更高。' },
+]
+
+function updateMode(mode: AppearanceMode) {
+  void store.updateAppearance({ ...appearance.value, mode })
+}
+
+function updateTheme(theme: AppearanceTheme) {
+  void store.updateAppearance({ ...appearance.value, theme })
+}
+
+function updateDensity(density: AppearanceDensity) {
+  void store.updateAppearance({ ...appearance.value, density })
+}
 </script>
 
 <template>
-  <div class="app-shell-glass app-shell-surface flex h-full overflow-hidden bg-transparent text-[var(--foreground)] border !border-gray-600 rounded-xl">
-    <aside class="flex w-[280px] shrink-0 flex-col border-r border-[color-mix(in_srgb,white_8%,transparent)]">
-      <div class="drag-region flex h-9 shrink-0 items-center justify-between border-b border-[color-mix(in_srgb,white_10%,transparent)] px-[var(--space-3)]">
+  <div class="app-shell-glass app-shell-surface flex h-full overflow-hidden rounded-xl border border-[var(--shell-border)] bg-transparent text-[var(--foreground)]">
+    <aside class="flex w-[280px] shrink-0 flex-col border-r border-[var(--separator)]">
+      <div class="drag-region flex h-9 shrink-0 items-center justify-between border-b border-[var(--separator)] px-[var(--space-3)]">
         <div :class="`no-drag flex items-center gap-2 text-[var(--muted-foreground)] ${MAC_WINDOW_CONTROLS_GAP}`">
           <Settings2 class="h-4 w-4" />
           <span class="text-ui-xs uppercase tracking-[0.26em]">Settings</span>
         </div>
       </div>
 
-      <div class="no-drag p-[var(--space-3)]">
+      <div class="no-drag px-[var(--space-2)] py-[var(--space-3)]">
         <Button variant="ghost" size="sm" class="text-ui-sm h-8 w-full justify-start gap-2 px-3" @click="router.push('/')">
           <ChevronLeft class="h-4 w-4" />
           返回编辑器
@@ -43,9 +81,10 @@ const hasSelectedNote = computed(() => Boolean(store.selectedPath.value))
               'text-ui-sm flex w-full items-center rounded-[calc(var(--radius)-0.1rem)] px-3 py-2 text-left transition',
               section.key === activeSectionKey
                 ? 'bg-[color-mix(in_srgb,var(--primary)_12%,transparent)] text-[var(--foreground)]'
-                : 'text-[var(--muted-foreground)] hover:bg-[color-mix(in_srgb,var(--accent)_68%,transparent)] hover:text-[var(--foreground)]',
+                : 'text-[var(--muted-foreground)] hover:bg-[var(--interactive-hover)] hover:text-[var(--foreground)]',
             ].join(' ')
           "
+          @click="activeSectionKey = section.key"
         >
           {{ section.label }}
         </button>
@@ -58,40 +97,45 @@ const hasSelectedNote = computed(() => Boolean(store.selectedPath.value))
     </aside>
 
     <main class="no-drag flex min-w-0 flex-1 flex-col overflow-hidden">
-      <header class="flex shrink-0 items-start justify-between gap-[var(--space-5)] border-b border-[color-mix(in_srgb,white_10%,transparent)] p-[var(--space-5)]">
+      <header class="flex shrink-0 items-start justify-between gap-[var(--space-5)] border-b border-[var(--separator)] p-[var(--space-5)]">
         <div>
-          <p class="text-ui-xs uppercase tracking-[0.24em] text-[var(--muted-foreground)]">General</p>
-          <h1 class="mt-[var(--space-2)] text-3xl font-semibold tracking-tight">通用设置</h1>
-          <p class="text-ui-md mt-[var(--space-3)] max-w-2xl leading-7 text-[var(--muted-foreground)]">
-            目前只有工作区目录设置。后续新增更多设置时，可以继续归类到这里或新增分类。
-          </p>
+          <template v-if="activeSection.key === 'general'">
+            <p class="text-ui-xs uppercase tracking-[0.24em] text-[var(--muted-foreground)]">General</p>
+            <h1 class="mt-[var(--space-2)] text-3xl font-semibold tracking-tight">通用设置</h1>
+            <p class="text-ui-md mt-[var(--space-3)] max-w-2xl leading-7 text-[var(--muted-foreground)]">
+              工作区目录、基础状态与编辑器全局行为放在这里管理。
+            </p>
+          </template>
+
+          <template v-else>
+            <p class="text-ui-xs uppercase tracking-[0.24em] text-[var(--muted-foreground)]">Appearance</p>
+            <h1 class="mt-[var(--space-2)] text-3xl font-semibold tracking-tight">外观设置</h1>
+            <p class="text-ui-md mt-[var(--space-3)] max-w-2xl leading-7 text-[var(--muted-foreground)]">
+              明暗模式、主题色与界面密度会即时应用到编辑器和侧边栏。
+            </p>
+          </template>
         </div>
       </header>
 
       <div class="flex min-h-0 flex-1 flex-col gap-[var(--space-5)] overflow-y-auto p-[var(--space-5)]">
-        <section class="rounded-[var(--radius)] border border-[color-mix(in_srgb,var(--border)_88%,transparent)] bg-[color-mix(in_srgb,var(--card)_20%,transparent)] p-[var(--space-5)]">
-          <div class="flex items-start justify-between gap-[var(--space-5)]">
-            <div class="min-w-0">
-              <p class="text-ui-md font-medium">笔记目录</p>
-              <p
-                class="text-ui-md mt-[var(--space-2)] break-all text-[var(--muted-foreground)]"
-                :class="store.notesDir.value ? 'font-mono text-ui-sm' : ''"
-                :title="store.notesDir.value ?? undefined"
-              >
-                {{ store.notesDir.value ?? '当前还没有连接本地 Markdown 工作区。' }}
-              </p>
-              <div class="text-ui-sm mt-[var(--space-4)] flex items-center gap-[var(--space-5)] text-[var(--muted-foreground)]">
-                <span>{{ notesCount }} 篇笔记</span>
-                <span>{{ hasSelectedNote ? '已打开文档' : '未打开文档' }}</span>
-              </div>
-            </div>
+        <GeneralSettingsSection
+          v-if="activeSection.key === 'general'"
+          :notes-dir="notesDir"
+          :notes-count="notesCount"
+          :has-selected-note="hasSelectedNote"
+          @choose-directory="store.chooseDirectory"
+        />
 
-            <Button class="gap-[var(--space-2)]" @click="store.chooseDirectory">
-              <FolderOpen class="h-4 w-4" />
-              {{ store.notesDir.value ? '更换目录' : '选择目录' }}
-            </Button>
-          </div>
-        </section>
+        <AppearanceSettingsSection
+          v-else
+          :appearance="appearance"
+          :mode-options="modeOptions"
+          :theme-options="themeOptions"
+          :density-options="densityOptions"
+          @update-mode="updateMode"
+          @update-theme="updateTheme"
+          @update-density="updateDensity"
+        />
       </div>
     </main>
   </div>
