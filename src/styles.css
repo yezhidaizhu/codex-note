@@ -46,8 +46,8 @@
   --text-md: 0.875rem;
   --content-area-pad: 1.25rem;
   --panel-pad: 1.25rem;
-  --editor-pad-x: 1.5rem;
-  --editor-pad-y: 1.5rem;
+  --editor-pad-x: 1rem;
+  --editor-pad-y: 1rem;
   --settings-page-pad: 1.25rem;
   --settings-page-gap: 1.25rem;
   --settings-section-gap: 1.25rem;
@@ -153,7 +153,9 @@ button {
 }
 
 .editor-surface {
-  background: color-mix(in srgb, var(--editor) 24%, transparent);
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
 :root[data-transparent-background='true'],
@@ -168,9 +170,7 @@ button {
 }
 
 :root[data-transparent-background='true'] .editor-surface {
-  background: color-mix(in srgb, var(--editor) 18%, transparent);
-  backdrop-filter: blur(10px) saturate(118%);
-  -webkit-backdrop-filter: blur(10px) saturate(118%);
+  background: transparent;
 }
 
 :root[data-transparent-background='true'] .app-shell-glass {
@@ -227,8 +227,7 @@ button {
 }
 
 :root[data-transparent-background='true'][data-appearance-mode='light'] .editor-surface {
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0.22));
+  background: transparent;
 }
 
 :root[data-transparent-background='true'][data-appearance-mode='light'] input,
@@ -251,7 +250,7 @@ button {
 }
 
 :root[data-transparent-background='false'] .editor-surface {
-  background: var(--editor);
+  background: transparent;
 }
 
 .panel-shadow {

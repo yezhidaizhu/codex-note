@@ -30,7 +30,7 @@ const appearance = ref<AppearanceSettings>({
   mode: 'system',
   theme: 'ember',
   density: 'comfortable',
-  transparentBackground: true,
+  transparentBackground: false,
 })
 
 const themePresets: Record<AppearanceTheme, { primary: string; primaryForeground: string; ring: string }> = {
@@ -166,8 +166,8 @@ const densityPresets: Record<AppearanceDensity, Record<string, string>> = {
   comfortable: {
     '--content-area-pad': '1.25rem',
     '--panel-pad': '1.25rem',
-    '--editor-pad-x': '1.5rem',
-    '--editor-pad-y': '1.5rem',
+    '--editor-pad-x': '1rem',
+    '--editor-pad-y': '1rem',
     '--settings-page-pad': '1.25rem',
     '--settings-page-gap': '1.25rem',
     '--settings-section-gap': '1.25rem',
