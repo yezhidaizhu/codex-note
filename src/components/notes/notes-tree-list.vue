@@ -39,6 +39,7 @@ const draggingItem = ref<DraggingItem>(null)
 const dropTargetFolderPath = ref<string | null>(null)
 const rootDropActive = ref(false)
 const searchItemElements = ref<HTMLElement[]>([])
+const listRootRef = ref<HTMLElement | null>(null)
 
 const isSearching = computed(() => props.query.trim().length > 0)
 
@@ -82,6 +83,40 @@ const notesByParent = computed<Record<string, NoteListItemData[]>>(() => {
     ;(groups[key] ??= []).push(note)
   }
   return groups
+})
+
+const visibleNotePaths = computed(() => {
+  if (isSearching.value) {
+    return props.filteredNotes.map((note) => note.path)
+  }
+
+  const paths: string[] = []
+
+  for (const note of pinnedNotes.value) {
+    paths.push(note.path)
+  }
+
+  const appendFolderBranch = (folderPath: string) => {
+    for (const note of notesByParent.value[folderPath] ?? []) {
+      paths.push(note.path)
+    }
+
+    if (!props.expandedFolderPaths.includes(folderPath)) return
+
+    for (const childFolder of foldersByParent.value[folderPath] ?? []) {
+      appendFolderBranch(childFolder.path)
+    }
+  }
+
+  for (const folder of rootFolders.value) {
+    appendFolderBranch(folder.path)
+  }
+
+  for (const note of rootNotes.value) {
+    paths.push(note.path)
+  }
+
+  return paths
 })
 
 function noteParent(pathValue: string): string | null {
@@ -140,6 +175,26 @@ function bindSearchItemElement(element: Element | { $el?: Element | null } | nul
   searchItemElements.value[index] = resolvedElement
 }
 
+async function focusNoteByPath(path: string) {
+  await nextTick()
+  const element = listRootRef.value?.querySelector<HTMLElement>(`[data-note-path="${CSS.escape(path)}"]`)
+  element?.focus()
+  element?.scrollIntoView({ block: 'nearest' })
+}
+
+async function navigateVisibleNotes(currentPath: string, direction: 1 | -1) {
+  const paths = visibleNotePaths.value
+  const currentIndex = paths.indexOf(currentPath)
+  if (currentIndex === -1) return
+
+  const nextIndex = currentIndex + direction
+  if (nextIndex < 0 || nextIndex >= paths.length) return
+
+  const nextPath = paths[nextIndex]
+  emit('openNote', nextPath)
+  await focusNoteByPath(nextPath)
+}
+
 watch(
   () => [props.searchActiveIndex, props.query, props.filteredNotes.length] as const,
   async () => {
@@ -173,6 +228,7 @@ watch(
   </div>
 
   <div
+    ref="listRootRef"
     v-else
     :class="[
       'scrollbar-thin flex min-h-0 flex-1 flex-col overflow-y-auto rounded-[calc(var(--radius)-0.2rem)] px-[var(--tree-list-pad-x)] pb-[var(--tree-list-pad-bottom)] transition-colors duration-150',
@@ -188,6 +244,7 @@ watch(
         v-for="(note, index) in filteredNotes"
         :key="note.path"
         :ref="(element) => bindSearchItemElement(element, index)"
+        :path="note.path"
         :label="getListLabel(note)"
         :match-preview="note.matchPreview"
         :highlight-query="query"
@@ -198,6 +255,7 @@ watch(
         :checked="selectedPaths.includes(note.path)"
         @toggleChecked="emit('toggleNoteSelection', note.path)"
         @togglePinned="emit('togglePinnedNote', note.path)"
+        @navigate="navigateVisibleNotes(note.path, $event)"
         @open="emit('openSearchResultAt', index)"
         @context-menu="
           (event) => {
@@ -213,6 +271,7 @@ watch(
         <NoteListItem
           v-for="note in pinnedNotes"
           :key="note.path"
+          :path="note.path"
           :label="getListLabel(note)"
           :match-preview="note.matchPreview"
           :highlight-query="''"
@@ -224,6 +283,7 @@ watch(
           :draggable="!isBatchSelecting"
           @togglePinned="emit('togglePinnedNote', note.path)"
           @toggleChecked="emit('toggleNoteSelection', note.path)"
+          @navigate="navigateVisibleNotes(note.path, $event)"
           @open="emit('openNote', note.path)"
           @context-menu="
             (event) => {
@@ -258,6 +318,7 @@ watch(
         @move-note-to-folder="emit('moveNoteToFolder', $event)"
         @move-folder-to-folder="emit('moveFolderToFolder', $event)"
         @toggle-pinned-note="emit('togglePinnedNote', $event)"
+        @navigate-note="navigateVisibleNotes($event.path, $event.direction)"
         @open-search-result-at="emit('openSearchResultAt', $event)"
         @item-drag-start="onItemDragStart($event.type, $event.path, $event.event)"
         @item-drag-end="onItemDragEnd"
@@ -279,6 +340,7 @@ watch(
         <NoteListItem
           v-for="note in rootNotes"
           :key="note.path"
+          :path="note.path"
           :label="getListLabel(note)"
           :match-preview="note.matchPreview"
           :highlight-query="''"
@@ -290,6 +352,7 @@ watch(
           :draggable="!isBatchSelecting"
           @togglePinned="emit('togglePinnedNote', note.path)"
           @toggleChecked="emit('toggleNoteSelection', note.path)"
+          @navigate="navigateVisibleNotes(note.path, $event)"
           @open="emit('openNote', note.path)"
           @context-menu="
             (event) => {

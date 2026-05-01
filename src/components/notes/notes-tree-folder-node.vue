@@ -35,6 +35,7 @@ const emit = defineEmits<{
   (e: 'moveNoteToFolder', payload: { path: string; targetFolderPath: string | null }): void
   (e: 'moveFolderToFolder', payload: { path: string; targetFolderPath: string | null }): void
   (e: 'togglePinnedNote', path: string): void
+  (e: 'navigateNote', payload: { path: string; direction: 1 | -1 }): void
   (e: 'itemDragStart', payload: { type: 'note' | 'folder'; path: string; event: DragEvent }): void
   (e: 'itemDragEnd'): void
   (e: 'setDropTarget', path: string): void
@@ -171,6 +172,7 @@ function iconClass() {
         @move-note-to-folder="emit('moveNoteToFolder', $event)"
         @move-folder-to-folder="emit('moveFolderToFolder', $event)"
         @toggle-pinned-note="emit('togglePinnedNote', $event)"
+        @navigate-note="emit('navigateNote', $event)"
         @item-drag-start="emit('itemDragStart', $event)"
         @item-drag-end="emit('itemDragEnd')"
         @set-drop-target="emit('setDropTarget', $event)"
@@ -180,6 +182,7 @@ function iconClass() {
       <NoteListItem
         v-for="note in notesByParent[folder.path] ?? []"
         :key="note.path"
+        :path="note.path"
         :label="getListLabel(note)"
         :date-label="formatCompactDate(note.updatedAt)"
         :selected="selectedPath === note.path"
@@ -190,6 +193,7 @@ function iconClass() {
         :inside-folder="true"
         @toggleChecked="emit('toggleNoteSelection', note.path)"
         @togglePinned="emit('togglePinnedNote', note.path)"
+        @navigate="emit('navigateNote', { path: note.path, direction: $event })"
         @open="emit('openNote', note.path)"
         @context-menu="
           (event) => {

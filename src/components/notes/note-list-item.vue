@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils'
 
 const props = withDefaults(
   defineProps<{
+    path: string
     label: string
     matchPreview?: string | null
     highlightQuery?: string
@@ -34,6 +35,7 @@ const emit = defineEmits<{
   (e: 'dragStart', event: DragEvent): void
   (e: 'dragEnd'): void
   (e: 'togglePinned', event: MouseEvent): void
+  (e: 'navigate', direction: 1 | -1): void
 }>()
 
 function rowClass() {
@@ -58,6 +60,19 @@ function handleClick() {
     return
   }
   emit('open')
+}
+
+function handleKeydown(event: KeyboardEvent) {
+  if (event.key === 'ArrowDown') {
+    event.preventDefault()
+    emit('navigate', 1)
+    return
+  }
+
+  if (event.key === 'ArrowUp') {
+    event.preventDefault()
+    emit('navigate', -1)
+  }
 }
 
 function buildHighlightedParts(text: string, query: string) {
@@ -101,6 +116,7 @@ const previewParts = computed(() => buildHighlightedParts(props.matchPreview ?? 
     type="button"
     variant="ghost"
     data-note-item="true"
+    :data-note-path="path"
     :class="
       cn(
         'group h-auto w-full items-start justify-start rounded-[calc(var(--radius)-0.2rem)] px-[var(--tree-item-pad-x)] py-[var(--tree-item-pad-y)] text-left hover:text-[var(--foreground)]',
@@ -110,6 +126,7 @@ const previewParts = computed(() => buildHighlightedParts(props.matchPreview ?? 
     :style="{ minHeight: 'var(--tree-item-min-height)' }"
     @click="handleClick"
     @contextmenu.prevent="emit('contextMenu', $event)"
+    @keydown="handleKeydown"
     :draggable="draggable"
     @dragstart="emit('dragStart', $event)"
     @dragend="emit('dragEnd')"
