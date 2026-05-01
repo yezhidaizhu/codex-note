@@ -18,7 +18,6 @@ export type NoteListItem = {
   name: string
   parentPath: string | null
   title: string
-  preview: string
   updatedAt: string
   size: number
 }

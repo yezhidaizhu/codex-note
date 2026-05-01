@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { AppearanceSettings } from '@/lib/types'
+import type { AppearanceSettings, NoteTreeResult } from '@/lib/types'
 
 const api = {
   getSettings: () => ipcRenderer.invoke('settings:get'),
@@ -9,8 +9,14 @@ const api = {
     ipcRenderer.on('system-appearance:changed', wrappedListener)
     return () => ipcRenderer.removeListener('system-appearance:changed', wrappedListener)
   },
+  onNotesTreeChange: (listener: (tree: NoteTreeResult) => void) => {
+    const wrappedListener = (_event: Electron.IpcRendererEvent, tree: NoteTreeResult) => listener(tree)
+    ipcRenderer.on('notes:tree-changed', wrappedListener)
+    return () => ipcRenderer.removeListener('notes:tree-changed', wrappedListener)
+  },
   chooseDirectory: () => ipcRenderer.invoke('notes:choose-directory'),
   listNotes: () => ipcRenderer.invoke('notes:list'),
+  searchNotes: (query: string) => ipcRenderer.invoke('notes:search', query),
   readNote: (path: string) => ipcRenderer.invoke('notes:read', path),
   saveNote: (payload: { currentPath?: string | null; parentPath: string | null; title: string; content: string }) =>
     ipcRenderer.invoke('notes:save', payload),

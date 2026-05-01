@@ -8,8 +8,10 @@ declare global {
       getSettings: () => Promise<AppSettings>
       getSystemAppearance: () => Promise<'dark' | 'light'>
       onSystemAppearanceChange: (listener: (mode: 'dark' | 'light') => void) => () => void
+      onNotesTreeChange: (listener: (tree: NoteTreeResult) => void) => () => void
       chooseDirectory: () => Promise<AppSettings | null>
       listNotes: () => Promise<NoteTreeResult>
+      searchNotes: (query: string) => Promise<NoteTreeResult>
       readNote: (path: string) => Promise<NotePayload>
       saveNote: (payload: { currentPath?: string | null; parentPath: string | null; title: string; content: string }) => Promise<SaveNoteResult>
       deleteNote: (path: string) => Promise<NoteTreeResult>

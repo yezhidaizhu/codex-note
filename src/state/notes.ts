@@ -129,6 +129,7 @@ export const useNotesStore = defineStore('notes', () => {
   const selectedPath = ref<string | null>(null)
   const errorMessage = ref('')
   const query = ref('')
+  const searchResults = ref<NoteListItemData[] | null>(null)
   const sidebarCollapsed = ref(false)
   const sidebarWidth = ref(312)
   const isPinned = ref(false)
@@ -137,14 +138,15 @@ export const useNotesStore = defineStore('notes', () => {
   const lastSavedSnapshot = ref<{ path: string | null; content: string } | null>(null)
 
   const filteredNotes = computed(() => {
-    const keyword = query.value.trim().toLowerCase()
-    if (!keyword) return notes.value
-    return notes.value.filter((item) => [item.title, item.preview, item.path].some((field) => field.toLowerCase().includes(keyword)))
+    if (!query.value.trim()) return notes.value
+    return searchResults.value ?? []
   })
 
   let saveInFlight = false
   let queuedSave: DraftNote | null = null
   let bootPromise: Promise<void> | null = null
+  let hasBoundNotesTreeListener = false
+  let searchRequestToken = 0
 
   function syncExpandedFolders(nextFolders: FolderListItem[]) {
     const previousKnown = new Set(knownFolderPaths.value)
@@ -163,6 +165,44 @@ export const useNotesStore = defineStore('notes', () => {
     notes.value = result.notes
     folders.value = result.folders
     syncExpandedFolders(result.folders)
+  }
+
+  async function runSearch(nextQuery = query.value) {
+    const normalizedQuery = nextQuery.trim()
+    const token = ++searchRequestToken
+
+    if (!normalizedQuery) {
+      searchResults.value = null
+      return
+    }
+
+    try {
+      const result = await getNotesApi().searchNotes(normalizedQuery)
+      if (token !== searchRequestToken) return
+      searchResults.value = result.notes
+    } catch (error) {
+      if (token !== searchRequestToken) return
+      searchResults.value = []
+      errorMessage.value = error instanceof Error ? error.message : '搜索失败。'
+    }
+  }
+
+  function bindNotesTreeListener() {
+    if (hasBoundNotesTreeListener || typeof window === 'undefined') return
+
+    getNotesApi().onNotesTreeChange((tree) => {
+      applyTreeResult(tree)
+      if (query.value.trim()) {
+        void runSearch(query.value)
+      }
+
+      if (selectedPath.value && !tree.notes.some((note) => note.path === selectedPath.value)) {
+        selectedPath.value = null
+        lastSavedSnapshot.value = tree.notes.length > 0 ? lastSavedSnapshot.value : { path: null, content: '' }
+        activeNote.value = tree.notes.length > 0 ? activeNote.value : emptyDraft()
+      }
+    })
+    hasBoundNotesTreeListener = true
   }
 
   function countNotesInFolder(folderPath: string): number {
@@ -197,6 +237,7 @@ export const useNotesStore = defineStore('notes', () => {
     errorMessage.value = ''
 
     try {
+      bindNotesTreeListener()
       const settings = await getNotesApi().getSettings()
       notesDir.value = settings.notesDir
       notes.value = settings.notes
@@ -239,6 +280,7 @@ export const useNotesStore = defineStore('notes', () => {
       folders.value = result.folders
       syncExpandedFolders(result.folders)
       query.value = ''
+      searchResults.value = null
 
       if (result.notes.length > 0) {
         await openNote(result.notes[0].path)
@@ -494,6 +536,22 @@ export const useNotesStore = defineStore('notes', () => {
       errorMessage.value = error instanceof Error ? error.message : '切换侧边栏失败。'
     }
   }
+
+  watch(
+    query,
+    (nextQuery, _prev, onCleanup) => {
+      const normalizedQuery = nextQuery.trim()
+      if (!normalizedQuery) {
+        searchRequestToken += 1
+        searchResults.value = null
+        return
+      }
+
+      const timer = window.setTimeout(() => void runSearch(nextQuery), 160)
+      onCleanup(() => window.clearTimeout(timer))
+    },
+    { flush: 'post' },
+  )
 
   watch(
     () => ({ note: activeNote.value, dir: notesDir.value }),
