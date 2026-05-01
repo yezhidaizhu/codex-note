@@ -19,6 +19,7 @@ export type StoredSettings = {
     directory: string
     targetPath: string
     writeClipboardOnCreate: boolean
+    namingRule: 'default' | 'datetime'
   }
   pinnedNotePaths: string[]
 }
@@ -42,7 +43,8 @@ export const defaultSettings: StoredSettings = {
     mode: 'create',
     directory: '/快速创建',
     targetPath: '',
-    writeClipboardOnCreate: false
+    writeClipboardOnCreate: false,
+    namingRule: 'default'
   },
   pinnedNotePaths: []
 }
@@ -135,6 +137,10 @@ export function sanitizeQuickCreateWriteClipboardOnCreate(value: boolean | null 
   return typeof value === 'boolean' ? value : defaultSettings.quickCreate.writeClipboardOnCreate
 }
 
+export function sanitizeQuickCreateNamingRule(value: 'default' | 'datetime' | null | undefined): 'default' | 'datetime' {
+  return value === 'datetime' ? 'datetime' : 'default'
+}
+
 export function sanitizePinnedNotePaths(value: string[] | null | undefined): string[] {
   if (!Array.isArray(value)) {
     return [...defaultSettings.pinnedNotePaths]
@@ -182,7 +188,8 @@ export async function readSettings(): Promise<StoredSettings> {
         mode: sanitizeQuickCreateMode(parsedQuickCreate.mode),
         directory: sanitizeQuickCreateDirectory(parsedQuickCreate.directory),
         targetPath: sanitizeQuickCreateTargetPath(parsedQuickCreate.targetPath),
-        writeClipboardOnCreate: sanitizeQuickCreateWriteClipboardOnCreate(parsedQuickCreate.writeClipboardOnCreate)
+        writeClipboardOnCreate: sanitizeQuickCreateWriteClipboardOnCreate(parsedQuickCreate.writeClipboardOnCreate),
+        namingRule: sanitizeQuickCreateNamingRule(parsedQuickCreate.namingRule)
       },
       pinnedNotePaths: sanitizePinnedNotePaths(parsed.pinnedNotePaths)
     }

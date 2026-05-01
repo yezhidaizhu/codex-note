@@ -11,6 +11,8 @@ defineProps<{
 const emit = defineEmits<{
   (e: 'deleteNote'): void
   (e: 'renameNote'): void
+  (e: 'copyRelativePath'): void
+  (e: 'copyAbsolutePath'): void
   (e: 'createNoteInFolder'): void
   (e: 'createFolderInFolder'): void
   (e: 'renameFolder'): void
@@ -33,6 +35,28 @@ const emit = defineEmits<{
       >
         重命名
       </button>
+      <div
+        v-if="(noteSelectionCount ?? 1) === 1"
+        class="my-1 h-px bg-[color-mix(in_srgb,var(--border)_88%,transparent)]"
+        aria-hidden="true"
+      />
+      <template v-if="(noteSelectionCount ?? 1) === 1">
+        <button
+          type="button"
+          class="text-ui-sm flex w-full items-center rounded-[calc(var(--radius)-0.25rem)] px-2 py-1.5 text-left text-[var(--foreground)] hover:bg-[var(--interactive-hover)]"
+          @click="emit('copyRelativePath')"
+        >
+          复制相对路径
+        </button>
+        <button
+          type="button"
+          class="text-ui-sm flex w-full items-center rounded-[calc(var(--radius)-0.25rem)] px-2 py-1.5 text-left text-[var(--foreground)] hover:bg-[var(--interactive-hover)]"
+          @click="emit('copyAbsolutePath')"
+        >
+          复制绝对路径
+        </button>
+        <div class="my-1 h-px bg-[color-mix(in_srgb,var(--border)_88%,transparent)]" aria-hidden="true" />
+      </template>
       <button
         type="button"
         class="text-ui-sm flex w-full items-center rounded-[calc(var(--radius)-0.25rem)] px-2 py-1.5 text-left text-[var(--destructive)] hover:bg-[var(--interactive-hover)]"

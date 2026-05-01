@@ -237,6 +237,18 @@ export function useIndexPageActions(store: NotesStore) {
     if (targetPath) openRenameNoteDialog(targetPath)
   }
 
+  async function copyRelativePathFromContextMenu() {
+    const targetPath = contextMenu.value?.targetType === 'note' ? contextMenu.value.path : null
+    closeContextMenu()
+    if (targetPath) await store.copyRelativeNotePath(targetPath)
+  }
+
+  async function copyAbsolutePathFromContextMenu() {
+    const targetPath = contextMenu.value?.targetType === 'note' ? contextMenu.value.path : null
+    closeContextMenu()
+    if (targetPath) await store.copyAbsoluteNotePath(targetPath)
+  }
+
   function createNoteInFolderFromContextMenu(createNoteAndFocus: (parentPath?: string | null) => void) {
     const targetPath = contextMenu.value?.targetType === 'folder' ? contextMenu.value.path : null
     closeContextMenu()
@@ -286,6 +298,8 @@ export function useIndexPageActions(store: NotesStore) {
     submitNameDialog,
     deleteNoteFromContextMenu,
     renameNoteFromContextMenu,
+    copyRelativePathFromContextMenu,
+    copyAbsolutePathFromContextMenu,
     createNoteInFolderFromContextMenu,
     createFolderInFolderFromContextMenu,
     renameFolderFromContextMenu,

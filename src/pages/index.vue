@@ -51,6 +51,8 @@ const {
   submitNameDialog,
   deleteNoteFromContextMenu,
   renameNoteFromContextMenu,
+  copyRelativePathFromContextMenu,
+  copyAbsolutePathFromContextMenu,
   createNoteInFolderFromContextMenu,
   createFolderInFolderFromContextMenu,
   renameFolderFromContextMenu,
@@ -200,6 +202,8 @@ onBeforeUnmount(() => {
       :note-selection-count="contextMenu.targetType === 'note' ? contextMenu.selectedPaths?.length ?? 1 : undefined"
       @delete-note="deleteNoteFromContextMenu"
       @rename-note="renameNoteFromContextMenu"
+      @copy-relative-path="copyRelativePathFromContextMenu"
+      @copy-absolute-path="copyAbsolutePathFromContextMenu"
       @create-note-in-folder="createNoteInFolderFromContextMenu(noteEditor.createNoteAndFocus)"
       @create-folder-in-folder="createFolderInFolderFromContextMenu"
       @rename-folder="renameFolderFromContextMenu"

@@ -18,6 +18,17 @@ export type QuickCreateSettings = {
   directory: string
   targetPath: string
   writeClipboardOnCreate: boolean
+  namingRule: 'default' | 'datetime'
+}
+
+export type OpenPathResult = {
+  ok: boolean
+  error?: string
+}
+
+export type CopyTextResult = {
+  ok: boolean
+  error?: string
 }
 
 export type NoteListItem = {

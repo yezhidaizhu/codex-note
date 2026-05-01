@@ -25,6 +25,7 @@ const defaultQuickCreateSettings: QuickCreateSettings = {
   directory: '/快速创建',
   targetPath: '',
   writeClipboardOnCreate: false,
+  namingRule: 'default',
 }
 
 function getNotesApi() {
@@ -665,6 +666,51 @@ export const useNotesStore = defineStore('notes', () => {
     }
   }
 
+  async function openNotesDirectory() {
+    try {
+      const result = await getNotesApi().openNotesDirectory()
+      if (!result.ok) {
+        throw new Error(result.error || '打开笔记目录失败。')
+      }
+      errorMessage.value = ''
+    } catch (error) {
+      errorMessage.value = error instanceof Error ? error.message : '打开笔记目录失败。'
+    }
+  }
+
+  async function copyRelativeNotePath(pathValue: string) {
+    try {
+      const normalizedPath = normalizePath(pathValue)
+      if (!normalizedPath) {
+        throw new Error('路径非法。')
+      }
+      const result = await getNotesApi().writeClipboardText(normalizedPath)
+      if (!result.ok) {
+        throw new Error(result.error || '复制相对路径失败。')
+      }
+      errorMessage.value = ''
+    } catch (error) {
+      errorMessage.value = error instanceof Error ? error.message : '复制相对路径失败。'
+    }
+  }
+
+  async function copyAbsoluteNotePath(pathValue: string) {
+    try {
+      const normalizedPath = normalizePath(pathValue)
+      if (!normalizedPath) {
+        throw new Error('路径非法。')
+      }
+      const { path } = await getNotesApi().getAbsoluteNotePath(normalizedPath)
+      const result = await getNotesApi().writeClipboardText(path)
+      if (!result.ok) {
+        throw new Error(result.error || '复制绝对路径失败。')
+      }
+      errorMessage.value = ''
+    } catch (error) {
+      errorMessage.value = error instanceof Error ? error.message : '复制绝对路径失败。'
+    }
+  }
+
   async function togglePinnedNote(pathValue: string) {
     const normalizedPath = normalizePath(pathValue)
     if (!normalizedPath) return
@@ -765,6 +811,9 @@ export const useNotesStore = defineStore('notes', () => {
     toggleFolderExpanded,
     countNotesInFolder,
     updateQuickCreateSettings,
+    openNotesDirectory,
+    copyRelativeNotePath,
+    copyAbsoluteNotePath,
     togglePinnedNote,
   }
 })

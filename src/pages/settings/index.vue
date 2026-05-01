@@ -5,6 +5,7 @@ import { storeToRefs } from 'pinia'
 import { useRouter } from 'vue-router'
 import Button from '@/components/ui/button.vue'
 import AppearanceSettingsSection from '@/components/settings/appearance-settings-section.vue'
+import AutomationSettingsSection from '@/components/settings/automation-settings-section.vue'
 import GeneralSettingsSection from '@/components/settings/general-settings-section.vue'
 import { usePanelResize } from '@/composables/use-panel-resize'
 import {
@@ -24,6 +25,7 @@ const { appearance } = storeToRefs(noteStyleStore)
 
 const sections = [
   { key: 'general', label: '通用' },
+  { key: 'automation', label: '自动化' },
   { key: 'appearance', label: '外观' },
 ] as const
 const activeSectionKey = ref<(typeof sections)[number]['key']>('general')
@@ -101,6 +103,10 @@ function updateQuickCreateTargetPath(targetPath: string) {
 
 function updateQuickCreateWriteClipboardOnCreate(writeClipboardOnCreate: boolean) {
   void notesStore.updateQuickCreateSettings({ ...quickCreate.value, writeClipboardOnCreate })
+}
+
+function updateQuickCreateNamingRule(namingRule: 'default' | 'datetime') {
+  void notesStore.updateQuickCreateSettings({ ...quickCreate.value, namingRule })
 }
 </script>
 
@@ -180,6 +186,14 @@ function updateQuickCreateWriteClipboardOnCreate(writeClipboardOnCreate: boolean
             </p>
           </template>
 
+          <template v-else-if="activeSection.key === 'automation'">
+            <p class="text-ui-xs uppercase tracking-[0.24em] text-[var(--muted-foreground)]">Automation</p>
+            <h1 class="mt-[var(--space-2)] text-3xl font-semibold tracking-tight">自动化设置</h1>
+            <p class="text-ui-md mt-[var(--space-3)] max-w-2xl leading-7 text-[var(--muted-foreground)]">
+              管理 Alt + A 这类快速触发动作，以及快速创建时的默认行为与命名规则。
+            </p>
+          </template>
+
           <template v-else>
             <p class="text-ui-xs uppercase tracking-[0.24em] text-[var(--muted-foreground)]">Appearance</p>
             <h1 class="mt-[var(--space-2)] text-3xl font-semibold tracking-tight">外观设置</h1>
@@ -196,12 +210,18 @@ function updateQuickCreateWriteClipboardOnCreate(writeClipboardOnCreate: boolean
           :notes-dir="notesDir"
           :notes-count="notesCount"
           :has-selected-note="hasSelectedNote"
-          :quick-create="quickCreate"
           @choose-directory="notesStore.chooseDirectory"
+          @open-directory="notesStore.openNotesDirectory"
+        />
+
+        <AutomationSettingsSection
+          v-else-if="activeSection.key === 'automation'"
+          :quick-create="quickCreate"
           @update-quick-create-mode="updateQuickCreateMode"
           @update-quick-create-directory="updateQuickCreateDirectory"
           @update-quick-create-target-path="updateQuickCreateTargetPath"
           @update-quick-create-write-clipboard-on-create="updateQuickCreateWriteClipboardOnCreate"
+          @update-quick-create-naming-rule="updateQuickCreateNamingRule"
         />
 
         <AppearanceSettingsSection

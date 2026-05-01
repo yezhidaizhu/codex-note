@@ -3,9 +3,11 @@
 import type {
   AppSettings,
   AppearanceSettings,
+  CopyTextResult,
   MoveFolderResult,
   NotePayload,
   NoteTreeResult,
+  OpenPathResult,
   QuickCreateSettings,
   RenameFolderResult,
   SaveNoteResult
@@ -35,6 +37,9 @@ declare global {
       moveFolder: (path: string, targetFolderPath: string | null) => Promise<MoveFolderResult>
       renameNote: (path: string, name: string) => Promise<SaveNoteResult>
       renameFolder: (path: string, name: string) => Promise<RenameFolderResult>
+      getAbsoluteNotePath: (path: string) => Promise<{ path: string }>
+      openNotesDirectory: () => Promise<OpenPathResult>
+      writeClipboardText: (value: string) => Promise<CopyTextResult>
       updateAppearance: (appearance: AppearanceSettings) => Promise<AppearanceSettings>
       updateQuickCreateSettings: (quickCreate: QuickCreateSettings) => Promise<QuickCreateSettings>
       updatePinnedNotePaths: (paths: string[]) => Promise<string[]>

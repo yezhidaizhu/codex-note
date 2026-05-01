@@ -1,6 +1,6 @@
-import { dirname, join } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { app, BrowserWindow, clipboard, dialog, globalShortcut, ipcMain, Menu, nativeImage, nativeTheme, screen, Tray } from 'electron'
+import { app, BrowserWindow, clipboard, dialog, globalShortcut, ipcMain, Menu, nativeImage, nativeTheme, screen, shell, Tray } from 'electron'
 import { MAIN_CONFIG } from './config'
 import {
   clampWindowFrameToWorkArea,
@@ -18,6 +18,7 @@ import {
   sanitizeBackgroundOpacity,
   sanitizePinnedNotePaths,
   sanitizeQuickCreateDirectory,
+  sanitizeQuickCreateNamingRule,
   sanitizeQuickCreateMode,
   sanitizeQuickCreateTargetPath,
   sanitizeQuickCreateWriteClipboardOnCreate,
@@ -126,6 +127,28 @@ function resolveQuickCreateTargetPath(pathValue: string): string {
   return targetPath.toLowerCase().endsWith('.md') ? targetPath : `${targetPath}.md`
 }
 
+function buildQuickCreateInitialContent(options: {
+  directory: string
+  clipboardContent: string
+  writeClipboardOnCreate: boolean
+  namingRule: 'default' | 'datetime'
+}): string {
+  const baseContent = options.writeClipboardOnCreate ? options.clipboardContent : ''
+  if (options.namingRule !== 'datetime') {
+    return baseContent
+  }
+
+  const now = new Date()
+  const pad = (value: number) => String(value).padStart(2, '0')
+  const stamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}-${pad(now.getMinutes())}-${pad(now.getSeconds())}`
+
+  if (!baseContent.trim()) {
+    return stamp
+  }
+
+  return `${stamp}\n\n${baseContent}`
+}
+
 function emitQuickCreateTriggered(payload: { action: 'create'; parentPath: string | null; initialContent: string } | { action: 'open'; path: string }): void {
   if (!mainWindow || mainWindow.isDestroyed()) {
     return
@@ -169,7 +192,12 @@ async function handleQuickCreateShortcut(): Promise<void> {
         : {
             action: 'create' as const,
             parentPath: resolveQuickCreateParentPath(settings.quickCreate.directory),
-            initialContent: content
+            initialContent: buildQuickCreateInitialContent({
+              directory: settings.quickCreate.directory,
+              clipboardContent: content,
+              writeClipboardOnCreate: settings.quickCreate.writeClipboardOnCreate,
+              namingRule: settings.quickCreate.namingRule
+            })
           }
 
     restoreWindow({ center: true })
@@ -543,7 +571,11 @@ ipcMain.handle('settings:update-quick-create', async (_event, quickCreate: Store
     writeClipboardOnCreate:
       quickCreate.writeClipboardOnCreate === undefined
         ? current.quickCreate.writeClipboardOnCreate
-        : sanitizeQuickCreateWriteClipboardOnCreate(quickCreate.writeClipboardOnCreate)
+        : sanitizeQuickCreateWriteClipboardOnCreate(quickCreate.writeClipboardOnCreate),
+    namingRule:
+      quickCreate.namingRule === undefined
+        ? current.quickCreate.namingRule
+        : sanitizeQuickCreateNamingRule(quickCreate.namingRule)
   }
 
   await writeSettings({
@@ -637,6 +669,53 @@ ipcMain.handle('notes:rename-note', async (_event, notePath: string, name: strin
 ipcMain.handle('notes:rename-folder', async (_event, folderPath: string, name: string) => {
   const notesDir = await notesService.getNotesDirOrThrow()
   return notesService.renameFolder(notesDir, folderPath, name)
+})
+
+ipcMain.handle('notes:get-absolute-path', async (_event, relativePath: string) => {
+  const notesDir = await notesService.getNotesDirOrThrow()
+  const normalized = relativePath
+    .replace(/\\/g, '/')
+    .split('/')
+    .map((segment) => segment.trim())
+    .filter((segment) => segment.length > 0 && segment !== '.')
+
+  if (normalized.some((segment) => segment === '..') || normalized.length === 0) {
+    throw new Error('路径非法。')
+  }
+
+  return {
+    path: resolve(notesDir, normalized.join('/')),
+  }
+})
+
+ipcMain.handle('clipboard:write-text', async (_event, value: string) => {
+  try {
+    clipboard.writeText(value)
+    return {
+      ok: true
+    }
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : '复制失败。'
+    }
+  }
+})
+
+ipcMain.handle('notes:open-directory', async () => {
+  const notesDir = await notesService.getNotesDirOrThrow()
+  const error = await shell.openPath(notesDir)
+
+  if (error) {
+    return {
+      ok: false,
+      error
+    }
+  }
+
+  return {
+    ok: true
+  }
 })
 
 ipcMain.handle('window:set-sidebar-collapsed', async (_event, collapsed: boolean) => {
