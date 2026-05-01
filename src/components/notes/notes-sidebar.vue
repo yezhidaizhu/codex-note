@@ -12,6 +12,7 @@ defineProps<{
   filteredNotes: NoteListItemData[]
   query: string
   selectedPath: string | null
+  searchActiveIndex: number
   sidebarCollapsed: boolean
   sidebarWidth: number
   isSidebarResizing: boolean
@@ -37,10 +38,32 @@ const emit = defineEmits<{
   (e: 'moveNoteToFolder', payload: { path: string; targetFolderPath: string | null }): void
   (e: 'moveFolderToFolder', payload: { path: string; targetFolderPath: string | null }): void
   (e: 'requestCreateFolder', parentPath: string | null): void
+  (e: 'openSearchResultAt', index: number): void
+  (e: 'moveSearchSelection', direction: 1 | -1): void
+  (e: 'openActiveSearchResult'): void
 }>()
 
 function onQueryInput(event: Event) {
   emit('update:query', (event.target as HTMLInputElement).value)
+}
+
+function onQueryKeydown(event: KeyboardEvent) {
+  if (event.key === 'ArrowDown') {
+    event.preventDefault()
+    emit('moveSearchSelection', 1)
+    return
+  }
+
+  if (event.key === 'ArrowUp') {
+    event.preventDefault()
+    emit('moveSearchSelection', -1)
+    return
+  }
+
+  if (event.key === 'Enter') {
+    event.preventDefault()
+    emit('openActiveSearchResult')
+  }
 }
 </script>
 
@@ -94,6 +117,7 @@ function onQueryInput(event: Event) {
             :style="{ height: 'var(--sidebar-search-input-height)' }"
             placeholder="搜索笔记"
             @input="onQueryInput"
+            @keydown="onQueryKeydown"
           />
         </div>
       </div>
@@ -164,6 +188,7 @@ function onQueryInput(event: Event) {
         :filtered-notes="filteredNotes"
         :query="query"
         :selected-path="selectedPath"
+        :search-active-index="searchActiveIndex"
         :is-batch-selecting="isBatchSelecting"
         :selected-paths="selectedPaths"
         :expanded-folder-paths="expandedFolderPaths"
@@ -174,6 +199,7 @@ function onQueryInput(event: Event) {
         @toggle-folder-expanded="emit('toggleFolderExpanded', $event)"
         @move-note-to-folder="emit('moveNoteToFolder', $event)"
         @move-folder-to-folder="emit('moveFolderToFolder', $event)"
+        @open-search-result-at="emit('openSearchResultAt', $event)"
       />
 
       <div

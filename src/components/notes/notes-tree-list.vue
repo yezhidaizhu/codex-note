@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import NoteListItem from '@/components/notes/note-list-item.vue'
 import NotesTreeFolderNode from '@/components/notes/notes-tree-folder-node.vue'
 import { formatCompactDate, getListLabel } from '@/state/notes'
@@ -16,6 +16,7 @@ const props = defineProps<{
   filteredNotes: NoteListItemData[]
   query: string
   selectedPath: string | null
+  searchActiveIndex: number
   isBatchSelecting: boolean
   selectedPaths: string[]
   expandedFolderPaths: string[]
@@ -23,6 +24,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'openNote', path: string): void
+  (e: 'openSearchResultAt', index: number): void
   (e: 'toggleNoteSelection', path: string): void
   (e: 'requestNoteContextMenu', payload: { path: string; x: number; y: number }): void
   (e: 'requestFolderContextMenu', payload: { path: string; x: number; y: number }): void
@@ -34,6 +36,7 @@ const emit = defineEmits<{
 const draggingItem = ref<DraggingItem>(null)
 const dropTargetFolderPath = ref<string | null>(null)
 const rootDropActive = ref(false)
+const searchItemElements = ref<HTMLElement[]>([])
 
 const isSearching = computed(() => props.query.trim().length > 0)
 
@@ -117,6 +120,21 @@ function onRootDrop() {
   }
   onItemDragEnd()
 }
+
+function bindSearchItemElement(element: Element | { $el?: Element | null } | null, index: number) {
+  const resolvedElement = element instanceof HTMLElement ? element : element && '$el' in element ? element.$el : null
+  if (!(resolvedElement instanceof HTMLElement)) return
+  searchItemElements.value[index] = resolvedElement
+}
+
+watch(
+  () => [props.searchActiveIndex, props.query, props.filteredNotes.length] as const,
+  async () => {
+    if (!isSearching.value) return
+    await nextTick()
+    searchItemElements.value[props.searchActiveIndex]?.scrollIntoView({ block: 'nearest' })
+  },
+)
 </script>
 
 <template>
@@ -151,17 +169,18 @@ function onRootDrop() {
   >
     <template v-if="isSearching">
       <NoteListItem
-        v-for="note in filteredNotes"
+        v-for="(note, index) in filteredNotes"
         :key="note.path"
+        :ref="(element) => bindSearchItemElement(element, index)"
         :label="getListLabel(note)"
         :match-preview="note.matchPreview"
         :highlight-query="query"
         :date-label="formatCompactDate(note.updatedAt)"
-        :selected="selectedPath === note.path"
+        :selected="searchActiveIndex === index"
         :selection-mode="isBatchSelecting"
         :checked="selectedPaths.includes(note.path)"
         @toggleChecked="emit('toggleNoteSelection', note.path)"
-        @open="emit('openNote', note.path)"
+        @open="emit('openSearchResultAt', index)"
         @context-menu="
           (event) => {
             if (isBatchSelecting) return
@@ -192,6 +211,7 @@ function onRootDrop() {
         @toggle-folder-expanded="emit('toggleFolderExpanded', $event)"
         @move-note-to-folder="emit('moveNoteToFolder', $event)"
         @move-folder-to-folder="emit('moveFolderToFolder', $event)"
+        @open-search-result-at="emit('openSearchResultAt', $event)"
         @item-drag-start="onItemDragStart($event.type, $event.path, $event.event)"
         @item-drag-end="onItemDragEnd"
         @set-drop-target="

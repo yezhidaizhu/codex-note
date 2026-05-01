@@ -13,6 +13,13 @@ export type AppearanceSettings = {
   backgroundOpacity: number | null
 }
 
+export type QuickCreateSettings = {
+  mode: 'create' | 'open'
+  directory: string
+  targetPath: string
+  writeClipboardOnCreate: boolean
+}
+
 export type NoteListItem = {
   path: string
   name: string
@@ -43,6 +50,7 @@ export type AppSettings = {
   notes: NoteListItem[]
   folders: FolderListItem[]
   appearance: AppearanceSettings
+  quickCreate: QuickCreateSettings
 }
 
 export type SaveNoteResult = {

@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { AppearanceSettings, NoteTreeResult } from '@/lib/types'
+import type { AppearanceSettings, NoteTreeResult, QuickCreateSettings } from '@/lib/types'
 
 const api = {
   getSettings: () => ipcRenderer.invoke('settings:get'),
@@ -13,6 +13,14 @@ const api = {
     const wrappedListener = (_event: Electron.IpcRendererEvent, tree: NoteTreeResult) => listener(tree)
     ipcRenderer.on('notes:tree-changed', wrappedListener)
     return () => ipcRenderer.removeListener('notes:tree-changed', wrappedListener)
+  },
+  onQuickCreateTriggered: (listener: (payload: { action: 'create'; parentPath: string | null; initialContent: string } | { action: 'open'; path: string }) => void) => {
+    const wrappedListener = (
+      _event: Electron.IpcRendererEvent,
+      payload: { action: 'create'; parentPath: string | null; initialContent: string } | { action: 'open'; path: string },
+    ) => listener(payload)
+    ipcRenderer.on('quick-create:triggered', wrappedListener)
+    return () => ipcRenderer.removeListener('quick-create:triggered', wrappedListener)
   },
   chooseDirectory: () => ipcRenderer.invoke('notes:choose-directory'),
   listNotes: () => ipcRenderer.invoke('notes:list'),
@@ -30,6 +38,7 @@ const api = {
   renameNote: (path: string, name: string) => ipcRenderer.invoke('notes:rename-note', path, name),
   renameFolder: (path: string, name: string) => ipcRenderer.invoke('notes:rename-folder', path, name),
   updateAppearance: (appearance: AppearanceSettings) => ipcRenderer.invoke('settings:update-appearance', appearance),
+  updateQuickCreateSettings: (quickCreate: QuickCreateSettings) => ipcRenderer.invoke('settings:update-quick-create', quickCreate),
   setSidebarCollapsed: (collapsed: boolean) => ipcRenderer.invoke('window:set-sidebar-collapsed', collapsed),
   getWindowState: () => ipcRenderer.invoke('window:get-state'),
   setAlwaysOnTop: (pinned: boolean) => ipcRenderer.invoke('window:set-always-on-top', pinned)

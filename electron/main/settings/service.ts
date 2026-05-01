@@ -14,6 +14,12 @@ export type StoredSettings = {
     backgroundColor: string | null
     backgroundOpacity: number | null
   }
+  quickCreate: {
+    mode: 'create' | 'open'
+    directory: string
+    targetPath: string
+    writeClipboardOnCreate: boolean
+  }
 }
 
 type LegacyStoredSettings = Omit<StoredSettings, 'windowBounds'> & {
@@ -30,6 +36,12 @@ export const defaultSettings: StoredSettings = {
     transparentBackground: true,
     backgroundColor: null,
     backgroundOpacity: null
+  },
+  quickCreate: {
+    mode: 'create',
+    directory: '/快速创建',
+    targetPath: '',
+    writeClipboardOnCreate: false
   }
 }
 
@@ -69,6 +81,58 @@ export function sanitizeBackgroundOpacity(value: number | null | undefined): num
   return normalizeBackgroundOpacity(value)
 }
 
+export function sanitizeQuickCreateDirectory(value: string | null | undefined): string {
+  if (typeof value !== 'string') {
+    return defaultSettings.quickCreate.directory
+  }
+
+  const normalizedSegments = value
+    .replace(/\\/g, '/')
+    .split('/')
+    .map((segment) => segment.trim())
+    .filter((segment) => segment.length > 0 && segment !== '.')
+
+  if (normalizedSegments.some((segment) => segment === '..')) {
+    return defaultSettings.quickCreate.directory
+  }
+
+  if (normalizedSegments.length === 0) {
+    return ''
+  }
+
+  return `/${normalizedSegments.join('/')}`
+}
+
+export function sanitizeQuickCreateMode(value: 'create' | 'open' | null | undefined): 'create' | 'open' {
+  return value === 'open' ? 'open' : 'create'
+}
+
+export function sanitizeQuickCreateTargetPath(value: string | null | undefined): string {
+  if (typeof value !== 'string') {
+    return defaultSettings.quickCreate.targetPath
+  }
+
+  const normalizedSegments = value
+    .replace(/\\/g, '/')
+    .split('/')
+    .map((segment) => segment.trim())
+    .filter((segment) => segment.length > 0 && segment !== '.')
+
+  if (normalizedSegments.some((segment) => segment === '..')) {
+    return defaultSettings.quickCreate.targetPath
+  }
+
+  if (normalizedSegments.length === 0) {
+    return ''
+  }
+
+  return normalizedSegments.join('/')
+}
+
+export function sanitizeQuickCreateWriteClipboardOnCreate(value: boolean | null | undefined): boolean {
+  return typeof value === 'boolean' ? value : defaultSettings.quickCreate.writeClipboardOnCreate
+}
+
 export async function readSettings(): Promise<StoredSettings> {
   try {
     const content = await readFile(settingsPath(), 'utf8')
@@ -76,6 +140,10 @@ export async function readSettings(): Promise<StoredSettings> {
     const parsedAppearance = {
       ...defaultSettings.appearance,
       ...(parsed.appearance ?? {})
+    }
+    const parsedQuickCreate = {
+      ...defaultSettings.quickCreate,
+      ...(parsed.quickCreate ?? {})
     }
 
     return {
@@ -85,6 +153,12 @@ export async function readSettings(): Promise<StoredSettings> {
         ...parsedAppearance,
         backgroundColor: normalizeHexColor(parsedAppearance.backgroundColor),
         backgroundOpacity: normalizeBackgroundOpacity(parsedAppearance.backgroundOpacity)
+      },
+      quickCreate: {
+        mode: sanitizeQuickCreateMode(parsedQuickCreate.mode),
+        directory: sanitizeQuickCreateDirectory(parsedQuickCreate.directory),
+        targetPath: sanitizeQuickCreateTargetPath(parsedQuickCreate.targetPath),
+        writeClipboardOnCreate: sanitizeQuickCreateWriteClipboardOnCreate(parsedQuickCreate.writeClipboardOnCreate)
       }
     }
   } catch {

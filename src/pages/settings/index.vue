@@ -19,7 +19,7 @@ import type { AppearanceDensity, AppearanceMode, AppearanceTheme } from '@/lib/t
 const router = useRouter()
 const notesStore = useNotesStore()
 const noteStyleStore = useNoteStyleStore()
-const { notes, selectedPath, notesDir, sidebarWidth } = storeToRefs(notesStore)
+const { notes, selectedPath, notesDir, quickCreate, sidebarWidth } = storeToRefs(notesStore)
 const { appearance } = storeToRefs(noteStyleStore)
 
 const sections = [
@@ -85,6 +85,22 @@ function updateBackgroundOpacity(backgroundOpacity: number | null) {
 
 function resetAppearance() {
   void noteStyleStore.resetAppearance()
+}
+
+function updateQuickCreateDirectory(directory: string) {
+  void notesStore.updateQuickCreateSettings({ ...quickCreate.value, directory })
+}
+
+function updateQuickCreateMode(mode: 'create' | 'open') {
+  void notesStore.updateQuickCreateSettings({ ...quickCreate.value, mode })
+}
+
+function updateQuickCreateTargetPath(targetPath: string) {
+  void notesStore.updateQuickCreateSettings({ ...quickCreate.value, targetPath })
+}
+
+function updateQuickCreateWriteClipboardOnCreate(writeClipboardOnCreate: boolean) {
+  void notesStore.updateQuickCreateSettings({ ...quickCreate.value, writeClipboardOnCreate })
 }
 </script>
 
@@ -180,7 +196,12 @@ function resetAppearance() {
           :notes-dir="notesDir"
           :notes-count="notesCount"
           :has-selected-note="hasSelectedNote"
+          :quick-create="quickCreate"
           @choose-directory="notesStore.chooseDirectory"
+          @update-quick-create-mode="updateQuickCreateMode"
+          @update-quick-create-directory="updateQuickCreateDirectory"
+          @update-quick-create-target-path="updateQuickCreateTargetPath"
+          @update-quick-create-write-clipboard-on-create="updateQuickCreateWriteClipboardOnCreate"
         />
 
         <AppearanceSettingsSection

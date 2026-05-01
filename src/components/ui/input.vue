@@ -17,6 +17,10 @@ const mergedClass = computed(() =>
   ),
 )
 
+const emit = defineEmits<{
+  (e: 'keydown', event: KeyboardEvent): void
+}>()
+
 defineExpose({
   focus: () => inputElement.value?.focus(),
   select: () => inputElement.value?.select(),
@@ -25,5 +29,5 @@ defineExpose({
 </script>
 
 <template>
-  <input ref="inputElement" v-bind="attrsWithoutClass" :class="mergedClass" />
+  <input ref="inputElement" v-bind="attrsWithoutClass" :class="mergedClass" @keydown="emit('keydown', $event)" />
 </template>

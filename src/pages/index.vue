@@ -21,6 +21,7 @@ const {
   notes,
   folders,
   filteredNotes,
+  searchActiveIndex,
   activeNote,
   selectedPath,
   errorMessage,
@@ -87,6 +88,7 @@ const { isResizing: isSidebarResizing, beginResize: beginSidebarResize } = usePa
         :filtered-notes="filteredNotes"
         :query="query"
         :selected-path="selectedPath"
+        :search-active-index="searchActiveIndex"
         :sidebar-collapsed="sidebarCollapsed"
         :sidebar-width="sidebarWidth"
         :is-sidebar-resizing="isSidebarResizing"
@@ -109,6 +111,9 @@ const { isResizing: isSidebarResizing, beginResize: beginSidebarResize } = usePa
         @moveNoteToFolder="store.moveNote($event.path, $event.targetFolderPath)"
         @moveFolderToFolder="store.moveFolder($event.path, $event.targetFolderPath)"
         @requestCreateFolder="openCreateFolderDialog($event)"
+        @openSearchResultAt="store.openSearchResultAt($event)"
+        @moveSearchSelection="store.moveSearchSelection($event)"
+        @openActiveSearchResult="store.openActiveSearchResult()"
       />
 
       <main class="flex min-h-0 flex-1 flex-col overflow-hidden bg-transparent">

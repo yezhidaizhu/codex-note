@@ -19,8 +19,8 @@ function isEditorTextareaHandle(value: unknown): value is NonNullable<EditorText
 }
 
 export function useNoteEditor(store: NotesStore) {
-  const pendingEditorFocus = ref(false)
   const editorTextarea = ref<EditorTextareaHandle>(null)
+  let lastHandledFocusRequestId = 0
 
   function bindEditorTextarea(element: Element | ComponentPublicInstance | null) {
     editorTextarea.value = isEditorTextareaHandle(element) ? element : null
@@ -33,8 +33,14 @@ export function useNoteEditor(store: NotesStore) {
   }
 
   function createNoteAndFocus(parentPath: string | null = null) {
-    pendingEditorFocus.value = true
     store.createNote(parentPath)
+    store.requestEditorFocus()
+  }
+
+  async function openNoteAndFocus(path: string) {
+    const opened = await store.openNote(path)
+    if (!opened) return
+    store.requestEditorFocus()
   }
 
   const onSaveHotkey = (event: KeyboardEvent) => {
@@ -45,15 +51,16 @@ export function useNoteEditor(store: NotesStore) {
   }
 
   watch(
-    () => store.activeNote,
-    async (note) => {
-      if (!note || !pendingEditorFocus.value) return
+    [() => store.activeNote, () => store.editorFocusRequestId],
+    async ([note, focusRequestId]) => {
+      if (!note || focusRequestId === 0 || focusRequestId === lastHandledFocusRequestId) return
       await nextTick()
       editorTextarea.value?.focus()
       const cursorPosition = note.content.length
       editorTextarea.value?.setSelectionRange(cursorPosition, cursorPosition)
-      pendingEditorFocus.value = false
+      lastHandledFocusRequestId = focusRequestId
     },
+    { immediate: true },
   )
 
   onMounted(() => window.addEventListener('keydown', onSaveHotkey))
@@ -63,5 +70,6 @@ export function useNoteEditor(store: NotesStore) {
     bindEditorTextarea,
     onEditorInput,
     createNoteAndFocus,
+    openNoteAndFocus,
   }
 }

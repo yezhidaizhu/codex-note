@@ -7,6 +7,7 @@ import type {
   NoteListItem as NoteListItemData,
   NotePayload,
   NoteTreeResult,
+  QuickCreateSettings,
   RenameFolderResult,
   SaveNoteResult,
 } from '@/lib/types'
@@ -19,6 +20,12 @@ type DraftNote = {
 }
 
 const NOTE_LABEL_MAX_LENGTH = 36
+const defaultQuickCreateSettings: QuickCreateSettings = {
+  mode: 'create',
+  directory: '/快速创建',
+  targetPath: '',
+  writeClipboardOnCreate: false,
+}
 
 function getNotesApi() {
   if (!window.notesApi) {
@@ -130,12 +137,15 @@ export const useNotesStore = defineStore('notes', () => {
   const errorMessage = ref('')
   const query = ref('')
   const searchResults = ref<NoteListItemData[] | null>(null)
+  const searchActiveIndex = ref(0)
   const sidebarCollapsed = ref(false)
   const sidebarWidth = ref(312)
   const isPinned = ref(false)
   const expandedFolderPaths = ref<string[]>([])
   const knownFolderPaths = ref<string[]>([])
   const lastSavedSnapshot = ref<{ path: string | null; content: string } | null>(null)
+  const quickCreate = ref<QuickCreateSettings>({ ...defaultQuickCreateSettings })
+  const editorFocusRequestId = ref(0)
 
   const filteredNotes = computed(() => {
     if (!query.value.trim()) return notes.value
@@ -167,12 +177,47 @@ export const useNotesStore = defineStore('notes', () => {
     syncExpandedFolders(result.folders)
   }
 
+  function setSearchActiveIndex(nextIndex: number) {
+    const items = filteredNotes.value
+    if (items.length === 0) {
+      searchActiveIndex.value = 0
+      return
+    }
+
+    searchActiveIndex.value = Math.min(Math.max(nextIndex, 0), items.length - 1)
+  }
+
+  async function moveSearchSelection(direction: 1 | -1) {
+    if (!query.value.trim() || filteredNotes.value.length === 0) return
+    setSearchActiveIndex(searchActiveIndex.value + direction)
+    const activeItem = filteredNotes.value[searchActiveIndex.value]
+    if (activeItem) {
+      await openNote(activeItem.path)
+    }
+  }
+
+  async function openActiveSearchResult() {
+    if (!query.value.trim() || filteredNotes.value.length === 0) return
+    const activeItem = filteredNotes.value[searchActiveIndex.value]
+    if (!activeItem) return
+    await openNote(activeItem.path)
+  }
+
+  async function openSearchResultAt(index: number) {
+    if (!query.value.trim() || filteredNotes.value.length === 0) return
+    setSearchActiveIndex(index)
+    const activeItem = filteredNotes.value[searchActiveIndex.value]
+    if (!activeItem) return
+    await openNote(activeItem.path)
+  }
+
   async function runSearch(nextQuery = query.value) {
     const normalizedQuery = nextQuery.trim()
     const token = ++searchRequestToken
 
     if (!normalizedQuery) {
       searchResults.value = null
+      searchActiveIndex.value = 0
       return
     }
 
@@ -180,9 +225,14 @@ export const useNotesStore = defineStore('notes', () => {
       const result = await getNotesApi().searchNotes(normalizedQuery)
       if (token !== searchRequestToken) return
       searchResults.value = result.notes
+      setSearchActiveIndex(0)
+      if (result.notes[0]) {
+        selectedPath.value = result.notes[0].path
+      }
     } catch (error) {
       if (token !== searchRequestToken) return
       searchResults.value = []
+      searchActiveIndex.value = 0
       errorMessage.value = error instanceof Error ? error.message : '搜索失败。'
     }
   }
@@ -228,8 +278,10 @@ export const useNotesStore = defineStore('notes', () => {
       lastSavedSnapshot.value = { path: note.path, content: note.content }
       activeNote.value = { path: note.path, parentPath: note.parentPath, content: note.content, updatedAt: note.updatedAt }
       errorMessage.value = ''
+      return true
     } catch (error) {
       errorMessage.value = error instanceof Error ? error.message : '打开笔记失败。'
+      return false
     }
   }
 
@@ -242,6 +294,7 @@ export const useNotesStore = defineStore('notes', () => {
       notesDir.value = settings.notesDir
       notes.value = settings.notes
       folders.value = settings.folders
+      quickCreate.value = settings.quickCreate
       syncExpandedFolders(settings.folders)
 
       if (settings.notes.length > 0) {
@@ -278,9 +331,11 @@ export const useNotesStore = defineStore('notes', () => {
       notesDir.value = result.notesDir
       notes.value = result.notes
       folders.value = result.folders
+      quickCreate.value = result.quickCreate
       syncExpandedFolders(result.folders)
       query.value = ''
       searchResults.value = null
+      searchActiveIndex.value = 0
 
       if (result.notes.length > 0) {
         await openNote(result.notes[0].path)
@@ -297,6 +352,17 @@ export const useNotesStore = defineStore('notes', () => {
     lastSavedSnapshot.value = { path: null, content: '' }
     activeNote.value = emptyDraft(parentPath)
     errorMessage.value = ''
+  }
+
+  function createNoteWithContent(parentPath: string | null = null, content = '') {
+    selectedPath.value = null
+    lastSavedSnapshot.value = { path: null, content: '' }
+    activeNote.value = { path: null, parentPath: normalizePath(parentPath), content, updatedAt: null }
+    errorMessage.value = ''
+  }
+
+  function requestEditorFocus() {
+    editorFocusRequestId.value += 1
   }
 
   async function saveNote(noteToSave = activeNote.value) {
@@ -537,6 +603,15 @@ export const useNotesStore = defineStore('notes', () => {
     }
   }
 
+  async function updateQuickCreateSettings(nextQuickCreate: QuickCreateSettings) {
+    try {
+      quickCreate.value = await getNotesApi().updateQuickCreateSettings(nextQuickCreate)
+      errorMessage.value = ''
+    } catch (error) {
+      errorMessage.value = error instanceof Error ? error.message : '更新快速创建设置失败。'
+    }
+  }
+
   watch(
     query,
     (nextQuery, _prev, onCleanup) => {
@@ -544,6 +619,7 @@ export const useNotesStore = defineStore('notes', () => {
       if (!normalizedQuery) {
         searchRequestToken += 1
         searchResults.value = null
+        searchActiveIndex.value = 0
         return
       }
 
@@ -591,18 +667,25 @@ export const useNotesStore = defineStore('notes', () => {
     notes,
     folders,
     filteredNotes,
+    searchActiveIndex,
     activeNote,
     selectedPath,
     errorMessage,
     query,
+    quickCreate,
     sidebarCollapsed,
     sidebarWidth,
     isPinned,
     expandedFolderPaths,
+    editorFocusRequestId,
     ensureInitialized,
     chooseDirectory,
     openNote,
+    moveSearchSelection,
+    openActiveSearchResult,
+    openSearchResultAt,
     createNote,
+    createNoteWithContent,
     saveNote,
     deleteNotesByPaths,
     createFolder,
@@ -611,10 +694,12 @@ export const useNotesStore = defineStore('notes', () => {
     moveFolder,
     renameNote,
     renameFolder,
+    requestEditorFocus,
     togglePinned,
     toggleSidebarCollapsed,
     toggleFolderExpanded,
     countNotesInFolder,
+    updateQuickCreateSettings,
   }
 })
 

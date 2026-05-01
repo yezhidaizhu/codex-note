@@ -1,6 +1,6 @@
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, nativeTheme, screen, Tray } from 'electron'
+import { app, BrowserWindow, clipboard, dialog, globalShortcut, ipcMain, Menu, nativeImage, nativeTheme, screen, Tray } from 'electron'
 import { MAIN_CONFIG } from './config'
 import {
   clampWindowBounds,
@@ -15,6 +15,10 @@ import {
   readSettings,
   sanitizeBackgroundColor,
   sanitizeBackgroundOpacity,
+  sanitizeQuickCreateDirectory,
+  sanitizeQuickCreateMode,
+  sanitizeQuickCreateTargetPath,
+  sanitizeQuickCreateWriteClipboardOnCreate,
   writeSettings,
   type StoredSettings
 } from './settings/store'
@@ -47,9 +51,26 @@ function currentSystemAppearance(): 'dark' | 'light' {
   return nativeTheme.shouldUseDarkColors ? 'dark' : 'light'
 }
 
-function restoreWindow(): void {
+function centerMainWindowOnActiveDisplay(): void {
   if (!mainWindow || mainWindow.isDestroyed()) {
-    void createWindow()
+    return
+  }
+
+  const currentBounds = mainWindow.getBounds()
+  const workArea = currentWorkArea()
+  const centeredBounds = {
+    ...currentBounds,
+    x: workArea.x + Math.round((workArea.width - currentBounds.width) / 2),
+    y: workArea.y + Math.round((workArea.height - currentBounds.height) / 2)
+  }
+
+  mainWindow.setBounds(centeredBounds)
+  lastDisplayId = displayForBounds(centeredBounds).id
+}
+
+function restoreWindow(options: { center?: boolean } = {}): void {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    void createWindow().then(() => restoreWindow(options))
     return
   }
 
@@ -61,9 +82,99 @@ function restoreWindow(): void {
     mainWindow.restore()
   }
 
+  if (options.center) {
+    centerMainWindowOnActiveDisplay()
+  }
+
   mainWindow.show()
   mainWindow.moveTop()
   mainWindow.focus()
+}
+
+function resolveQuickCreateParentPath(directory: string): string | null {
+  const normalizedSegments = directory
+    .replace(/\\/g, '/')
+    .split('/')
+    .map((segment) => segment.trim())
+    .filter((segment) => segment.length > 0 && segment !== '.')
+
+  if (normalizedSegments.some((segment) => segment === '..')) {
+    throw new Error('快速创建目录非法。')
+  }
+
+  return normalizedSegments.length > 0 ? normalizedSegments.join('/') : null
+}
+
+function resolveQuickCreateTargetPath(pathValue: string): string {
+  const normalizedSegments = pathValue
+    .replace(/\\/g, '/')
+    .split('/')
+    .map((segment) => segment.trim())
+    .filter((segment) => segment.length > 0 && segment !== '.')
+
+  if (normalizedSegments.some((segment) => segment === '..')) {
+    throw new Error('快速打开路径非法。')
+  }
+
+  if (normalizedSegments.length === 0) {
+    throw new Error('请先设置要快速打开的 Markdown 文件路径。')
+  }
+
+  const targetPath = normalizedSegments.join('/')
+  return targetPath.toLowerCase().endsWith('.md') ? targetPath : `${targetPath}.md`
+}
+
+function emitQuickCreateTriggered(payload: { action: 'create'; parentPath: string | null; initialContent: string } | { action: 'open'; path: string }): void {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    return
+  }
+
+  const sendEvent = () => mainWindow?.webContents.send('quick-create:triggered', payload)
+  if (mainWindow.webContents.isLoading()) {
+    mainWindow.webContents.once('did-finish-load', sendEvent)
+    return
+  }
+
+  sendEvent()
+}
+
+async function showQuickCreateError(message: string): Promise<void> {
+  restoreWindow({ center: true })
+
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    dialog.showErrorBox('快速创建失败', message)
+    return
+  }
+
+  await dialog.showMessageBox(mainWindow, {
+    type: 'error',
+    buttons: ['知道了'],
+    defaultId: 0,
+    noLink: true,
+    title: '快速创建失败',
+    message: '快速创建失败',
+    detail: message
+  })
+}
+
+async function handleQuickCreateShortcut(): Promise<void> {
+  try {
+    const [settings] = await Promise.all([readSettings(), notesService.getNotesDirOrThrow()])
+    const content = settings.quickCreate.writeClipboardOnCreate ? clipboard.readText() : ''
+    const payload =
+      settings.quickCreate.mode === 'open'
+        ? { action: 'open' as const, path: resolveQuickCreateTargetPath(settings.quickCreate.targetPath) }
+        : {
+            action: 'create' as const,
+            parentPath: resolveQuickCreateParentPath(settings.quickCreate.directory),
+            initialContent: content
+          }
+
+    restoreWindow({ center: true })
+    emitQuickCreateTriggered(payload)
+  } catch (error) {
+    await showQuickCreateError(error instanceof Error ? error.message : '创建笔记时出现未知错误。')
+  }
 }
 
 function clearPersistWindowBoundsTimer(): void {
@@ -308,6 +419,9 @@ app.whenReady().then(() => {
   app.on('before-quit', () => {
     isQuitting = true
   })
+  app.on('will-quit', () => {
+    globalShortcut.unregisterAll()
+  })
 
   if (process.platform === 'darwin') {
     if (process.env.VITE_DEV_SERVER_URL) {
@@ -321,6 +435,9 @@ app.whenReady().then(() => {
 
   createTray()
   void createWindow()
+  globalShortcut.register('Alt+A', () => {
+    void handleQuickCreateShortcut()
+  })
 
   nativeTheme.on('updated', () => {
     if (!mainWindow || mainWindow.isDestroyed()) {
@@ -378,7 +495,8 @@ ipcMain.handle('notes:choose-directory', async () => {
     notesDir,
     notes: noteTree.notes,
     folders: noteTree.folders,
-    appearance: current.appearance
+    appearance: current.appearance,
+    quickCreate: current.quickCreate
   }
 })
 
@@ -403,6 +521,32 @@ ipcMain.handle('settings:update-appearance', async (_event, appearance: StoredSe
   })
 
   return nextAppearance
+})
+
+ipcMain.handle('settings:update-quick-create', async (_event, quickCreate: StoredSettings['quickCreate']) => {
+  const current = await readSettings()
+  const nextQuickCreate = {
+    mode: quickCreate.mode === undefined ? current.quickCreate.mode : sanitizeQuickCreateMode(quickCreate.mode),
+    directory:
+      quickCreate.directory === undefined
+        ? current.quickCreate.directory
+        : sanitizeQuickCreateDirectory(quickCreate.directory),
+    targetPath:
+      quickCreate.targetPath === undefined
+        ? current.quickCreate.targetPath
+        : sanitizeQuickCreateTargetPath(quickCreate.targetPath),
+    writeClipboardOnCreate:
+      quickCreate.writeClipboardOnCreate === undefined
+        ? current.quickCreate.writeClipboardOnCreate
+        : sanitizeQuickCreateWriteClipboardOnCreate(quickCreate.writeClipboardOnCreate)
+  }
+
+  await writeSettings({
+    ...current,
+    quickCreate: nextQuickCreate
+  })
+
+  return nextQuickCreate
 })
 
 ipcMain.handle('system:get-appearance', async () => currentSystemAppearance())

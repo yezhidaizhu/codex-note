@@ -1,6 +1,15 @@
 /// <reference types="vite/client" />
 
-import type { AppSettings, AppearanceSettings, MoveFolderResult, NotePayload, NoteTreeResult, RenameFolderResult, SaveNoteResult } from '@/lib/types'
+import type {
+  AppSettings,
+  AppearanceSettings,
+  MoveFolderResult,
+  NotePayload,
+  NoteTreeResult,
+  QuickCreateSettings,
+  RenameFolderResult,
+  SaveNoteResult
+} from '@/lib/types'
 
 declare global {
   interface Window {
@@ -9,6 +18,9 @@ declare global {
       getSystemAppearance: () => Promise<'dark' | 'light'>
       onSystemAppearanceChange: (listener: (mode: 'dark' | 'light') => void) => () => void
       onNotesTreeChange: (listener: (tree: NoteTreeResult) => void) => () => void
+      onQuickCreateTriggered: (
+        listener: (payload: { action: 'create'; parentPath: string | null; initialContent: string } | { action: 'open'; path: string }) => void,
+      ) => () => void
       chooseDirectory: () => Promise<AppSettings | null>
       listNotes: () => Promise<NoteTreeResult>
       searchNotes: (query: string) => Promise<NoteTreeResult>
@@ -24,6 +36,7 @@ declare global {
       renameNote: (path: string, name: string) => Promise<SaveNoteResult>
       renameFolder: (path: string, name: string) => Promise<RenameFolderResult>
       updateAppearance: (appearance: AppearanceSettings) => Promise<AppearanceSettings>
+      updateQuickCreateSettings: (quickCreate: QuickCreateSettings) => Promise<QuickCreateSettings>
       setSidebarCollapsed: (collapsed: boolean) => Promise<void>
       getWindowState: () => Promise<{ isAlwaysOnTop: boolean }>
       setAlwaysOnTop: (pinned: boolean) => Promise<{ isAlwaysOnTop: boolean }>
