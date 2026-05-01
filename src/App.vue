@@ -28,7 +28,7 @@ onMounted(() => {
           return
         }
 
-        notesStore.createNoteWithContent(payload.parentPath, payload.initialContent)
+        notesStore.createNoteWithContent(payload.parentPath, payload.initialContent, payload.nameSeed ?? null)
         notesStore.requestEditorFocus()
       })()
     }) ?? null

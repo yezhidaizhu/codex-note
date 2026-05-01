@@ -15,6 +15,7 @@ import type {
 type DraftNote = {
   path: string | null
   parentPath: string | null
+  nameSeed: string | null
   content: string
   updatedAt: string | null
 }
@@ -58,7 +59,7 @@ function pathParent(pathValue: string | null): string | null {
 }
 
 function emptyDraft(parentPath: string | null = null): DraftNote {
-  return { path: null, parentPath: normalizePath(parentPath), content: '', updatedAt: null }
+  return { path: null, parentPath: normalizePath(parentPath), nameSeed: null, content: '', updatedAt: null }
 }
 
 function getMeaningfulLines(content: string): string[] {
@@ -319,7 +320,7 @@ export const useNotesStore = defineStore('notes', () => {
       const note = await getNotesApi().readNote(pathValue)
       selectedPath.value = note.path
       lastSavedSnapshot.value = { path: note.path, content: note.content }
-      activeNote.value = { path: note.path, parentPath: note.parentPath, content: note.content, updatedAt: note.updatedAt }
+      activeNote.value = { path: note.path, parentPath: note.parentPath, nameSeed: null, content: note.content, updatedAt: note.updatedAt }
       errorMessage.value = ''
       return true
     } catch (error) {
@@ -392,17 +393,17 @@ export const useNotesStore = defineStore('notes', () => {
     }
   }
 
-  function createNote(parentPath: string | null = null) {
+function createNote(parentPath: string | null = null) {
     selectedPath.value = null
     lastSavedSnapshot.value = { path: null, content: '' }
     activeNote.value = emptyDraft(parentPath)
     errorMessage.value = ''
   }
 
-  function createNoteWithContent(parentPath: string | null = null, content = '') {
+  function createNoteWithContent(parentPath: string | null = null, content = '', nameSeed: string | null = null) {
     selectedPath.value = null
     lastSavedSnapshot.value = { path: null, content: '' }
-    activeNote.value = { path: null, parentPath: normalizePath(parentPath), content, updatedAt: null }
+    activeNote.value = { path: null, parentPath: normalizePath(parentPath), nameSeed, content, updatedAt: null }
     errorMessage.value = ''
   }
 
@@ -426,7 +427,7 @@ export const useNotesStore = defineStore('notes', () => {
       const result = await getNotesApi().saveNote({
         currentPath: noteToSave.path,
         parentPath: noteToSave.path ? pathParent(noteToSave.path) : noteToSave.parentPath,
-        name: noteToSave.path ? undefined : inferInitialNoteName(noteToSave.content),
+        name: noteToSave.path ? undefined : noteToSave.nameSeed ?? inferInitialNoteName(noteToSave.content),
         content: noteToSave.content,
       })
 
@@ -438,14 +439,15 @@ export const useNotesStore = defineStore('notes', () => {
         activeNote.value = {
           path: result.note.path,
           parentPath: result.note.parentPath,
+          nameSeed: null,
           content: result.note.content,
           updatedAt: result.note.updatedAt,
         }
       } else if (activeNote.value) {
-        activeNote.value = { ...activeNote.value, path: result.note.path, parentPath: result.note.parentPath }
+        activeNote.value = { ...activeNote.value, path: result.note.path, parentPath: result.note.parentPath, nameSeed: null }
       }
 
-      if (queuedSave) queuedSave = { ...queuedSave, path: result.note.path, parentPath: result.note.parentPath }
+      if (queuedSave) queuedSave = { ...queuedSave, path: result.note.path, parentPath: result.note.parentPath, nameSeed: null }
     } catch (error) {
       errorMessage.value = error instanceof Error ? error.message : '保存失败。'
     } finally {
@@ -747,6 +749,7 @@ export const useNotesStore = defineStore('notes', () => {
       const currentSnapshot: DraftNote = {
         path: note.path,
         parentPath: note.parentPath,
+        nameSeed: note.nameSeed,
         content: note.content,
         updatedAt: note.updatedAt,
       }

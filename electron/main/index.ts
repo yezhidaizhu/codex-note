@@ -127,26 +127,18 @@ function resolveQuickCreateTargetPath(pathValue: string): string {
   return targetPath.toLowerCase().endsWith('.md') ? targetPath : `${targetPath}.md`
 }
 
-function buildQuickCreateInitialContent(options: {
-  directory: string
+function buildQuickCreateNameSeed(options: {
   clipboardContent: string
   writeClipboardOnCreate: boolean
   namingRule: 'default' | 'datetime'
-}): string {
-  const baseContent = options.writeClipboardOnCreate ? options.clipboardContent : ''
+}): string | null {
   if (options.namingRule !== 'datetime') {
-    return baseContent
+    return null
   }
 
   const now = new Date()
   const pad = (value: number) => String(value).padStart(2, '0')
-  const stamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`
-
-  if (!baseContent.trim()) {
-    return stamp
-  }
-
-  return `${stamp}\n\n${baseContent}`
+  return `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`
 }
 
 function emitQuickCreateTriggered(payload: { action: 'create'; parentPath: string | null; initialContent: string } | { action: 'open'; path: string }): void {
@@ -192,15 +184,16 @@ async function handleQuickCreateShortcut(): Promise<void> {
         : {
             action: 'create' as const,
             parentPath: resolveQuickCreateParentPath(settings.quickCreate.directory),
-            initialContent: buildQuickCreateInitialContent({
-              directory: settings.quickCreate.directory,
+            initialContent: content,
+            nameSeed: buildQuickCreateNameSeed({
               clipboardContent: content,
               writeClipboardOnCreate: settings.quickCreate.writeClipboardOnCreate,
               namingRule: settings.quickCreate.namingRule
             })
           }
 
-    restoreWindow({ center: true })
+    const shouldCenterWindow = !mainWindow || mainWindow.isDestroyed() || !mainWindow.isVisible() || mainWindow.isMinimized() || !mainWindow.isFocused()
+    restoreWindow({ center: shouldCenterWindow })
     emitQuickCreateTriggered(payload)
   } catch (error) {
     await showQuickCreateError(error instanceof Error ? error.message : '创建笔记时出现未知错误。')

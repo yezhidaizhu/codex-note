@@ -21,7 +21,7 @@ declare global {
       onSystemAppearanceChange: (listener: (mode: 'dark' | 'light') => void) => () => void
       onNotesTreeChange: (listener: (tree: NoteTreeResult) => void) => () => void
       onQuickCreateTriggered: (
-        listener: (payload: { action: 'create'; parentPath: string | null; initialContent: string } | { action: 'open'; path: string }) => void,
+        listener: (payload: { action: 'create'; parentPath: string | null; initialContent: string; nameSeed?: string | null } | { action: 'open'; path: string }) => void,
       ) => () => void
       chooseDirectory: () => Promise<AppSettings | null>
       listNotes: () => Promise<NoteTreeResult>

@@ -14,10 +14,10 @@ const api = {
     ipcRenderer.on('notes:tree-changed', wrappedListener)
     return () => ipcRenderer.removeListener('notes:tree-changed', wrappedListener)
   },
-  onQuickCreateTriggered: (listener: (payload: { action: 'create'; parentPath: string | null; initialContent: string } | { action: 'open'; path: string }) => void) => {
+  onQuickCreateTriggered: (listener: (payload: { action: 'create'; parentPath: string | null; initialContent: string; nameSeed?: string | null } | { action: 'open'; path: string }) => void) => {
     const wrappedListener = (
       _event: Electron.IpcRendererEvent,
-      payload: { action: 'create'; parentPath: string | null; initialContent: string } | { action: 'open'; path: string },
+      payload: { action: 'create'; parentPath: string | null; initialContent: string; nameSeed?: string | null } | { action: 'open'; path: string },
     ) => listener(payload)
     ipcRenderer.on('quick-create:triggered', wrappedListener)
     return () => ipcRenderer.removeListener('quick-create:triggered', wrappedListener)
