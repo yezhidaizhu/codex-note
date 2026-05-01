@@ -106,16 +106,20 @@ function currentSystemAppearance(): 'dark' | 'light' {
 
 function restoreWindow(): void {
   if (!mainWindow || mainWindow.isDestroyed()) {
-    createWindow()
+    void createWindow()
     return
   }
 
-  if (!mainWindow.isVisible()) {
-    mainWindow.show()
+  if (process.platform === 'darwin') {
+    app.focus({ steal: true })
   }
+
   if (mainWindow.isMinimized()) {
     mainWindow.restore()
   }
+
+  mainWindow.show()
+  mainWindow.moveTop()
   mainWindow.focus()
 }
 
@@ -726,7 +730,10 @@ app.whenReady().then(() => {
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       void createWindow()
+      return
     }
+
+    restoreWindow()
   })
 })
 
