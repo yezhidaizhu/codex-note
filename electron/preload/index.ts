@@ -17,6 +17,8 @@ const api = {
   chooseDirectory: () => ipcRenderer.invoke('notes:choose-directory'),
   listNotes: () => ipcRenderer.invoke('notes:list'),
   searchNotes: (query: string) => ipcRenderer.invoke('notes:search', query),
+  getSearchMode: () => ipcRenderer.invoke('notes:get-search-mode') as Promise<{ mode: 'memory' | 'ripgrep' }>,
+  setSearchMode: (mode: 'memory' | 'ripgrep') => ipcRenderer.invoke('notes:set-search-mode', mode) as Promise<{ mode: 'memory' | 'ripgrep' }>,
   readNote: (path: string) => ipcRenderer.invoke('notes:read', path),
   saveNote: (payload: { currentPath?: string | null; parentPath: string | null; title: string; content: string }) =>
     ipcRenderer.invoke('notes:save', payload),

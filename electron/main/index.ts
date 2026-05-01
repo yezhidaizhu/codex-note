@@ -1,6 +1,7 @@
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, nativeTheme, screen, Tray } from 'electron'
+import { MAIN_CONFIG } from './config'
 import {
   clampWindowBounds,
   computeDefaultWindowBounds,
@@ -8,18 +9,15 @@ import {
   type StoredWindowBounds,
   type WindowBounds,
   type WindowSizeMode
-} from './window-bounds'
-import { createNotesService } from './notes-service'
+} from './window'
+import { createNotesService } from './notes'
 import {
-  defaultSettings,
   readSettings,
   sanitizeBackgroundColor,
   sanitizeBackgroundOpacity,
   writeSettings,
   type StoredSettings
-} from './settings-store'
-
-const DISPLAY_CHANGE_RESIZE_LOCK_MS = 1600
+} from './settings/store'
 
 let mainWindow: BrowserWindow | null = null
 let tray: Tray | null = null
@@ -35,6 +33,7 @@ const trayTemplateIconPath = join(currentDir, '../../resources/trayTemplate.png'
 const trayTemplateIcon2xPath = join(currentDir, '../../resources/trayTemplate@2x.png')
 const notesService = createNotesService({
   getNotesDirSetting: async () => (await readSettings()).notesDir,
+  defaultSearchMode: MAIN_CONFIG.search.defaultMode,
   onTreeChanged: (tree) => {
     if (!mainWindow || mainWindow.isDestroyed()) {
       return
@@ -273,7 +272,7 @@ async function createWindow(): Promise<void> {
     }
 
     lastDisplayId = displayId
-    displayChangeResizeLockUntil = Date.now() + DISPLAY_CHANGE_RESIZE_LOCK_MS
+    displayChangeResizeLockUntil = Date.now() + MAIN_CONFIG.window.displayChangeResizeLockMs
     scheduleDisplayChangeModeReapply()
   })
 
@@ -379,7 +378,7 @@ ipcMain.handle('notes:choose-directory', async () => {
     notesDir,
     notes: noteTree.notes,
     folders: noteTree.folders,
-    appearance: current.appearance ?? defaultSettings.appearance
+    appearance: current.appearance
   }
 })
 
@@ -416,6 +415,19 @@ ipcMain.handle('notes:list', async () => {
 ipcMain.handle('notes:search', async (_event, query: string) => {
   const notesDir = await notesService.getNotesDirOrThrow()
   return notesService.searchNotes(notesDir, query)
+})
+
+ipcMain.handle('notes:get-search-mode', async () => {
+  return {
+    mode: notesService.getSearchMode()
+  }
+})
+
+ipcMain.handle('notes:set-search-mode', async (_event, mode: 'memory' | 'ripgrep') => {
+  notesService.setSearchMode(mode)
+  return {
+    mode: notesService.getSearchMode()
+  }
 })
 
 ipcMain.handle('notes:read', async (_event, notePath: string) => {

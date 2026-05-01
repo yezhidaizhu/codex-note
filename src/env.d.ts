@@ -12,6 +12,8 @@ declare global {
       chooseDirectory: () => Promise<AppSettings | null>
       listNotes: () => Promise<NoteTreeResult>
       searchNotes: (query: string) => Promise<NoteTreeResult>
+      getSearchMode: () => Promise<{ mode: 'memory' | 'ripgrep' }>
+      setSearchMode: (mode: 'memory' | 'ripgrep') => Promise<{ mode: 'memory' | 'ripgrep' }>
       readNote: (path: string) => Promise<NotePayload>
       saveNote: (payload: { currentPath?: string | null; parentPath: string | null; title: string; content: string }) => Promise<SaveNoteResult>
       deleteNote: (path: string) => Promise<NoteTreeResult>

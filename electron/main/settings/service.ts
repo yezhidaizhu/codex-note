@@ -1,7 +1,7 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { app } from 'electron'
-import { normalizeStoredWindowBounds, type StoredWindowBounds } from './window-bounds'
+import { normalizeStoredWindowBounds, type StoredWindowBounds } from '../window'
 
 export type StoredSettings = {
   notesDir: string | null

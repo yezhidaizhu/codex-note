@@ -1,6 +1,7 @@
 import { watch, type FSWatcher } from 'node:fs'
 import { mkdir, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/promises'
 import { basename, dirname, extname, join, parse, relative, resolve } from 'node:path'
+import { searchNotes as runSearch, type NotesSearchMode } from '../search'
 
 export type NoteListItem = {
   path: string
@@ -65,6 +66,7 @@ type SaveNotePayload = {
 type NotesServiceOptions = {
   getNotesDirSetting: () => Promise<string | null>
   onTreeChanged?: (tree: NoteTreeResult) => void
+  defaultSearchMode?: NotesSearchMode
 }
 
 const NOTE_TITLE_MAX_LENGTH = 36
@@ -80,6 +82,11 @@ export function createNotesService(options: NotesServiceOptions) {
     pendingRefreshRoots: new Set(),
     refreshTimer: null,
     refreshInFlight: false
+  }
+  let searchMode: NotesSearchMode = options.defaultSearchMode ?? 'memory'
+
+  function shouldCacheSearchText(mode: NotesSearchMode = searchMode): boolean {
+    return mode === 'memory'
   }
 
   function noteTreeSnapshot(): NoteTreeResult {
@@ -196,10 +203,6 @@ export function createNotesService(options: NotesServiceOptions) {
       .at(0) ?? null
   }
 
-  function searchableText(value: string): string {
-    return value.replace(/\r/g, '\n').replace(/\s+/g, ' ').trim().toLowerCase()
-  }
-
   function isMarkdownFile(pathValue: string): boolean {
     return extname(pathValue).toLowerCase() === '.md'
   }
@@ -288,7 +291,7 @@ export function createNotesService(options: NotesServiceOptions) {
         updatedAt: fileStat.mtime.toISOString(),
         size: fileStat.size
       },
-      searchText: searchableText(content)
+      searchText: shouldCacheSearchText() ? content.replace(/\r/g, '\n').replace(/\s+/g, ' ').trim().toLowerCase() : ''
     }
   }
 
@@ -301,7 +304,11 @@ export function createNotesService(options: NotesServiceOptions) {
     try {
       const entry = await readNoteIndexEntry(notesDir, normalizedPath)
       state.notes.set(normalizedPath, entry.item)
-      state.searchTexts.set(normalizedPath, entry.searchText)
+      if (shouldCacheSearchText()) {
+        state.searchTexts.set(normalizedPath, entry.searchText)
+      } else {
+        state.searchTexts.delete(normalizedPath)
+      }
     } catch {
       state.notes.delete(normalizedPath)
       state.searchTexts.delete(normalizedPath)
@@ -359,7 +366,11 @@ export function createNotesService(options: NotesServiceOptions) {
       try {
         const entryData = await readNoteIndexEntry(notesDir, entryRelativePath)
         state.notes.set(entryRelativePath, entryData.item)
-        state.searchTexts.set(entryRelativePath, entryData.searchText)
+        if (shouldCacheSearchText()) {
+          state.searchTexts.set(entryRelativePath, entryData.searchText)
+        } else {
+          state.searchTexts.delete(entryRelativePath)
+        }
       } catch {
         state.notes.delete(entryRelativePath)
         state.searchTexts.delete(entryRelativePath)
@@ -488,19 +499,22 @@ export function createNotesService(options: NotesServiceOptions) {
     return noteTreeSnapshot()
   }
 
-  async function searchNotes(notesDir: string, query: string): Promise<NoteTreeResult> {
+  async function searchNotes(notesDir: string, query: string, mode = searchMode): Promise<NoteTreeResult> {
     await ensureNotesIndex(notesDir)
-    const keyword = searchableText(query)
-    if (!keyword) {
+    const notes = noteTreeSnapshot().notes
+    if (!query.trim()) {
       return noteTreeSnapshot()
     }
 
-    const notes = noteTreeSnapshot().notes.filter((item) => {
-      const indexedContent = state.searchTexts.get(item.path) ?? ''
-      return [item.title, item.path].some((field) => field.toLowerCase().includes(keyword)) || indexedContent.includes(keyword)
+    const matchedNotes = await runSearch({
+      mode,
+      notesDir,
+      notes,
+      searchTexts: state.searchTexts,
+      query
     })
 
-    return { notes, folders: noteTreeSnapshot().folders }
+    return { notes: matchedNotes, folders: noteTreeSnapshot().folders }
   }
 
   async function readNote(notesDir: string, notePath: string): Promise<NotePayload> {
@@ -742,6 +756,13 @@ export function createNotesService(options: NotesServiceOptions) {
 
   return {
     dispose: () => resetIndex(null),
+    getSearchMode: () => searchMode,
+    setSearchMode: (mode: NotesSearchMode) => {
+      searchMode = mode
+      if (!shouldCacheSearchText(mode)) {
+        state.searchTexts.clear()
+      }
+    },
     getNotesDirOrThrow,
     currentNotesTree,
     searchNotes,
