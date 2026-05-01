@@ -46,10 +46,10 @@ function rowClass() {
 
 function iconClass() {
   if (props.selected) {
-    return 'bg-[var(--tree-item-icon-active)] text-[var(--primary)]'
+    return 'text-[var(--primary)]'
   }
 
-  return 'bg-[var(--tree-item-icon)] text-[var(--muted-foreground)]'
+  return 'text-[var(--muted-foreground)]'
 }
 
 function handleClick() {
@@ -134,7 +134,7 @@ const previewParts = computed(() => buildHighlightedParts(props.matchPreview ?? 
         <span v-else class="h-[var(--tree-chevron-slot)] w-[var(--tree-chevron-slot)] shrink-0" aria-hidden="true" />
 
         <span
-          :class="cn('flex shrink-0 items-center justify-center rounded-md transition-colors', iconClass())"
+          :class="cn('flex shrink-0 items-center justify-center transition-colors', iconClass())"
           :style="{ width: 'var(--tree-item-icon-size)', height: 'var(--tree-item-icon-size)' }"
           aria-hidden="true"
         >

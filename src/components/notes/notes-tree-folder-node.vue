@@ -86,10 +86,10 @@ function rowClass() {
 
 function iconClass() {
   if (props.dropTargetFolderPath === props.folder.path) {
-    return 'bg-[var(--tree-item-icon-active)] text-[var(--primary)]'
+    return 'text-[var(--primary)]'
   }
 
-  return 'bg-[var(--tree-item-icon)] text-[var(--muted-foreground)]'
+  return 'text-[var(--muted-foreground)]'
 }
 </script>
 
@@ -103,7 +103,12 @@ function iconClass() {
   >
     <div
       data-folder-item="true"
-      :class="cn('flex w-full items-center gap-[var(--tree-branch-gap)] rounded-[calc(var(--radius)-0.2rem)] px-[var(--tree-item-pad-x)] py-[var(--tree-item-pad-y)] text-[var(--foreground)] transition-[background-color,color] duration-200', rowClass())"
+      :class="
+        cn(
+          'flex w-full cursor-pointer items-center gap-[var(--tree-branch-gap)] rounded-[calc(var(--radius)-0.2rem)] px-[var(--tree-item-pad-x)] py-[var(--tree-item-pad-y)] text-[var(--foreground)] transition-[background-color,color] duration-200',
+          rowClass(),
+        )
+      "
       :style="{ minHeight: 'var(--tree-item-min-height)' }"
       draggable="true"
       @click="emit('toggleFolderExpanded', folder.path)"
@@ -128,7 +133,7 @@ function iconClass() {
       </button>
 
       <span
-        :class="cn('flex shrink-0 items-center justify-center rounded-md transition-colors', iconClass())"
+        :class="cn('flex shrink-0 items-center justify-center transition-colors', iconClass())"
         :style="{ width: 'var(--tree-item-icon-size)', height: 'var(--tree-item-icon-size)' }"
         aria-hidden="true"
       >
