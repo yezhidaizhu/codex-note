@@ -2,13 +2,19 @@ import { mkdir, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/p
 import { basename, dirname, extname, join, parse, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, nativeTheme, screen, Tray } from 'electron'
+import {
+  clampWindowBounds,
+  computeDefaultWindowBounds,
+  getWindowMinimumSize,
+  normalizeStoredWindowBounds,
+  type StoredWindowBounds,
+  type WindowBounds,
+  type WindowSizeMode
+} from './window-bounds'
 
 type StoredSettings = {
   notesDir: string | null
-  windowBounds: {
-    width: number
-    height: number
-  } | null
+  windowBounds: StoredWindowBounds | null
   appearance: {
     mode: 'system' | 'dark' | 'light'
     theme: 'ember' | 'ocean' | 'forest'
@@ -61,15 +67,12 @@ type MoveFolderResult = {
   folders: FolderListItem[]
 }
 
+type LegacyStoredSettings = Omit<StoredSettings, 'windowBounds'> & {
+  windowBounds?: unknown
+}
+
 const NOTE_TITLE_MAX_LENGTH = 36
-const EXPANDED_MIN_WIDTH = 600
-const EXPANDED_MIN_HEIGHT = 600
-const COLLAPSED_MIN_WIDTH = 300
-const DEFAULT_COLLAPSED_WIDTH = 480
-const DEFAULT_WINDOW_WIDTH = 960
-const DEFAULT_WINDOW_HEIGHT = 760
-const WINDOW_EDGE_SNAP_THRESHOLD = 24
-const MIN_VISIBLE_HEADER_HEIGHT = 88
+const DISPLAY_CHANGE_RESIZE_LOCK_MS = 1600
 
 const defaultSettings: StoredSettings = {
   notesDir: null,
@@ -87,13 +90,11 @@ const defaultSettings: StoredSettings = {
 let mainWindow: BrowserWindow | null = null
 let tray: Tray | null = null
 let isQuitting = false
-let sidebarCollapsed = false
-let expandedSize = { width: DEFAULT_WINDOW_WIDTH, height: DEFAULT_WINDOW_HEIGHT }
-let collapsedSize = { width: DEFAULT_COLLAPSED_WIDTH, height: DEFAULT_WINDOW_HEIGHT }
 let persistWindowBoundsTimer: NodeJS.Timeout | null = null
-let moveStabilizeTimer: NodeJS.Timeout | null = null
-let correctingDisplayTransition = false
+let displayChangeReapplyTimer: NodeJS.Timeout | null = null
 let lastDisplayId: number | null = null
+let displayChangeResizeLockUntil = 0
+let currentWindowSizeMode: WindowSizeMode = 'expanded'
 const currentDir = dirname(fileURLToPath(import.meta.url))
 const appIconPath = join(currentDir, '../../resources/icon.png')
 const trayTemplateIconPath = join(currentDir, '../../resources/trayTemplate.png')
@@ -118,160 +119,109 @@ function restoreWindow(): void {
   mainWindow.focus()
 }
 
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(Math.max(value, min), max)
-}
-
-function computeVisibleBounds(nextWidth: number, nextHeight: number): Electron.Rectangle | null {
-  if (!mainWindow || mainWindow.isDestroyed()) {
-    return null
-  }
-
-  const currentBounds = mainWindow.getBounds()
-  const display = screen.getDisplayMatching(currentBounds)
-  const workArea = display.workArea
-  const workAreaRight = workArea.x + workArea.width
-  const workAreaBottom = workArea.y + workArea.height
-  const currentRight = currentBounds.x + currentBounds.width
-  const currentBottom = currentBounds.y + currentBounds.height
-
-  let nextX = currentBounds.x
-  let nextY = currentBounds.y
-
-  const pinnedLeft = Math.abs(currentBounds.x - workArea.x) <= WINDOW_EDGE_SNAP_THRESHOLD
-  const pinnedRight = Math.abs(workAreaRight - currentRight) <= WINDOW_EDGE_SNAP_THRESHOLD
-  const pinnedTop = Math.abs(currentBounds.y - workArea.y) <= WINDOW_EDGE_SNAP_THRESHOLD
-  const pinnedBottom = Math.abs(workAreaBottom - currentBottom) <= WINDOW_EDGE_SNAP_THRESHOLD
-
-  if (pinnedRight && !pinnedLeft) {
-    nextX = currentRight - nextWidth
-  }
-
-  if (pinnedBottom && !pinnedTop) {
-    nextY = currentBottom - nextHeight
-  }
-
-  nextX = clamp(nextX, workArea.x, Math.max(workArea.x, workAreaRight - nextWidth))
-  nextY = clamp(nextY, workArea.y, Math.max(workArea.y, workAreaBottom - MIN_VISIBLE_HEADER_HEIGHT))
-
-  return {
-    x: nextX,
-    y: nextY,
-    width: nextWidth,
-    height: nextHeight
-  }
-}
-
-function resizeWindowWithinVisibleArea(nextWidth: number, nextHeight: number): void {
-  if (!mainWindow || mainWindow.isDestroyed()) {
+function clearPersistWindowBoundsTimer(): void {
+  if (!persistWindowBoundsTimer) {
     return
   }
 
-  const nextBounds = computeVisibleBounds(nextWidth, nextHeight)
-  if (!nextBounds) {
+  clearTimeout(persistWindowBoundsTimer)
+  persistWindowBoundsTimer = null
+}
+
+function clearDisplayChangeReapplyTimer(): void {
+  if (!displayChangeReapplyTimer) {
     return
   }
 
-  mainWindow.setBounds(nextBounds)
+  clearTimeout(displayChangeReapplyTimer)
+  displayChangeReapplyTimer = null
 }
 
-function clampWindowWidth(width: number, workAreaWidth: number): number {
-  return clamp(width, EXPANDED_MIN_WIDTH, Math.max(EXPANDED_MIN_WIDTH, workAreaWidth))
-}
-
-function clampWindowHeight(height: number, workAreaHeight: number): number {
-  return clamp(height, EXPANDED_MIN_HEIGHT, Math.max(EXPANDED_MIN_HEIGHT, workAreaHeight))
-}
-
-function computeDefaultWindowSize(workArea: Electron.Rectangle) {
-  const allDisplays = screen.getAllDisplays()
-  const smallestWorkArea = allDisplays.reduce(
-    (smallest, display) => ({
-      width: Math.min(smallest.width, display.workArea.width),
-      height: Math.min(smallest.height, display.workArea.height)
-    }),
-    {
-      width: workArea.width,
-      height: workArea.height
-    }
-  )
-
-  return {
-    width: clampWindowWidth(Math.min(DEFAULT_WINDOW_WIDTH, Math.round(smallestWorkArea.width * 0.78)), workArea.width),
-    height: clampWindowHeight(Math.min(DEFAULT_WINDOW_HEIGHT, Math.round(smallestWorkArea.height * 0.82)), workArea.height)
-  }
-}
-
-async function persistWindowBounds(width: number, height: number): Promise<void> {
+async function persistWindowBounds(bounds: Electron.Rectangle, mode: WindowSizeMode = currentWindowSizeMode): Promise<void> {
   const current = await readSettings()
+  const nextWindowBounds: StoredWindowBounds = {
+    expanded: current.windowBounds?.expanded ?? null,
+    collapsed: current.windowBounds?.collapsed ?? null
+  }
+  nextWindowBounds[mode] = {
+    width: bounds.width,
+    height: bounds.height
+  }
+
   await writeSettings({
     ...current,
-    windowBounds: {
-      width: Math.max(width, EXPANDED_MIN_WIDTH),
-      height: Math.max(height, EXPANDED_MIN_HEIGHT)
-    }
+    windowBounds: nextWindowBounds
   })
 }
 
-function schedulePersistWindowBounds(width: number, height: number): void {
-  if (persistWindowBoundsTimer) {
-    clearTimeout(persistWindowBoundsTimer)
-  }
-
+function schedulePersistWindowBounds(bounds: Electron.Rectangle, mode: WindowSizeMode = currentWindowSizeMode): void {
+  clearPersistWindowBoundsTimer()
   persistWindowBoundsTimer = setTimeout(() => {
     persistWindowBoundsTimer = null
-    void persistWindowBounds(width, height)
+    void persistWindowBounds(bounds, mode)
   }, 180)
 }
 
-function desiredWindowSizeForDisplay(display: Electron.Display) {
-  if (sidebarCollapsed) {
-    return {
-      width: clamp(Math.max(collapsedSize.width, COLLAPSED_MIN_WIDTH), COLLAPSED_MIN_WIDTH, Math.max(COLLAPSED_MIN_WIDTH, display.workArea.width)),
-      height: clamp(Math.max(collapsedSize.height, EXPANDED_MIN_HEIGHT), EXPANDED_MIN_HEIGHT, Math.max(EXPANDED_MIN_HEIGHT, display.workArea.height))
-    }
+function displayForBounds(bounds?: Electron.Rectangle): Electron.Display {
+  if (bounds) {
+    return screen.getDisplayMatching(bounds)
   }
 
-  return {
-    width: clampWindowWidth(expandedSize.width, display.workArea.width),
-    height: clampWindowHeight(expandedSize.height, display.workArea.height)
-  }
+  return screen.getDisplayNearestPoint(screen.getCursorScreenPoint())
 }
 
-function scheduleDisplayTransitionCorrection(): void {
+function currentWorkArea(bounds?: Electron.Rectangle): Electron.Rectangle {
+  return displayForBounds(bounds).workArea
+}
+
+function shouldBlockDisplayChangeResize(currentBounds: Electron.Rectangle, nextBounds: Electron.Rectangle): boolean {
+  if (Date.now() > displayChangeResizeLockUntil) {
+    return false
+  }
+
+  return currentBounds.width !== nextBounds.width || currentBounds.height !== nextBounds.height
+}
+
+async function applyWindowSizeMode(mode: WindowSizeMode): Promise<WindowBounds> {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    const workArea = currentWorkArea()
+    return computeDefaultWindowBounds(workArea, mode)
+  }
+
+  currentWindowSizeMode = mode
+  const currentBounds = mainWindow.getBounds()
+  const workArea = currentWorkArea(currentBounds)
+  const settings = await readSettings()
+  const targetBounds = settings.windowBounds?.[mode] ?? computeDefaultWindowBounds(workArea, mode)
+  const nextBounds = clampWindowBounds(targetBounds, workArea, mode)
+  const minimumSize = getWindowMinimumSize(mode)
+
+  mainWindow.setMinimumSize(minimumSize.width, minimumSize.height)
+  mainWindow.setBounds({
+    ...currentBounds,
+    width: nextBounds.width,
+    height: nextBounds.height
+  })
+  schedulePersistWindowBounds({
+    ...currentBounds,
+    width: nextBounds.width,
+    height: nextBounds.height
+  }, mode)
+
+  return nextBounds
+}
+
+function scheduleDisplayChangeModeReapply(): void {
   if (!mainWindow || mainWindow.isDestroyed()) {
     return
   }
 
-  if (moveStabilizeTimer) {
-    clearTimeout(moveStabilizeTimer)
-  }
-
-  moveStabilizeTimer = setTimeout(() => {
-    moveStabilizeTimer = null
-
-    if (!mainWindow || mainWindow.isDestroyed() || correctingDisplayTransition) {
-      return
-    }
-
-    const display = screen.getDisplayMatching(mainWindow.getBounds())
-    if (lastDisplayId === display.id) {
-      return
-    }
-
-    lastDisplayId = display.id
-    const desiredSize = desiredWindowSizeForDisplay(display)
-    const [currentWidth, currentHeight] = mainWindow.getSize()
-    if (currentWidth === desiredSize.width && currentHeight === desiredSize.height) {
-      return
-    }
-
-    correctingDisplayTransition = true
-    resizeWindowWithinVisibleArea(desiredSize.width, desiredSize.height)
-    setTimeout(() => {
-      correctingDisplayTransition = false
-    }, 0)
-  }, 120)
+  clearDisplayChangeReapplyTimer()
+  const mode = currentWindowSizeMode
+  displayChangeReapplyTimer = setTimeout(() => {
+    displayChangeReapplyTimer = null
+    void applyWindowSizeMode(mode)
+  }, 420)
 }
 
 function createTray(): void {
@@ -320,24 +270,21 @@ function createTray(): void {
 
 async function createWindow(): Promise<void> {
   const settings = await readSettings()
-  const display = screen.getDisplayNearestPoint(screen.getCursorScreenPoint())
-  const workArea = display.workArea
-  const preferredSize = settings.windowBounds
-    ? {
-        width: clampWindowWidth(settings.windowBounds.width, workArea.width),
-        height: clampWindowHeight(settings.windowBounds.height, workArea.height)
-      }
-    : computeDefaultWindowSize(workArea)
+  const workArea = currentWorkArea()
+  currentWindowSizeMode = 'expanded'
+  const preferredExpandedBounds = settings.windowBounds?.expanded ?? computeDefaultWindowBounds(workArea, 'expanded')
+  const preferredSize = clampWindowBounds(preferredExpandedBounds, workArea, 'expanded')
   const initialX = workArea.x + Math.round((workArea.width - preferredSize.width) / 2)
   const initialY = workArea.y + Math.round((workArea.height - preferredSize.height) / 2)
+  const minimumSize = getWindowMinimumSize('expanded')
 
   mainWindow = new BrowserWindow({
     width: preferredSize.width,
     height: preferredSize.height,
     x: initialX,
     y: initialY,
-    minWidth: EXPANDED_MIN_WIDTH,
-    minHeight: EXPANDED_MIN_HEIGHT,
+    minWidth: minimumSize.width,
+    minHeight: minimumSize.height,
     show: false,
     titleBarStyle: 'hidden',
     transparent: true,
@@ -352,43 +299,34 @@ async function createWindow(): Promise<void> {
     }
   })
 
-  const [initialWidth, initialHeight] = mainWindow.getSize()
-  expandedSize = {
-    width: Math.max(initialWidth, EXPANDED_MIN_WIDTH),
-    height: Math.max(initialHeight, EXPANDED_MIN_HEIGHT)
-  }
-  collapsedSize = {
-    width: Math.max(COLLAPSED_MIN_WIDTH, Math.min(DEFAULT_COLLAPSED_WIDTH, expandedSize.width)),
-    height: expandedSize.height
-  }
-  lastDisplayId = display.id
+  lastDisplayId = displayForBounds(mainWindow.getBounds()).id
 
   mainWindow.on('will-resize', (_event, newBounds) => {
     if (!mainWindow || mainWindow.isDestroyed()) {
       return
     }
 
-    if (sidebarCollapsed) {
-      collapsedSize = {
-        width: Math.max(newBounds.width, COLLAPSED_MIN_WIDTH),
-        height: newBounds.height
-      }
+    const currentBounds = mainWindow.getBounds()
+    if (shouldBlockDisplayChangeResize(currentBounds, newBounds)) {
+      _event.preventDefault()
       return
     }
-
-    expandedSize = {
-      width: Math.max(newBounds.width, EXPANDED_MIN_WIDTH),
-      height: newBounds.height
-    }
-    schedulePersistWindowBounds(expandedSize.width, expandedSize.height)
+    schedulePersistWindowBounds(newBounds, currentWindowSizeMode)
   })
 
   mainWindow.on('move', () => {
-    scheduleDisplayTransitionCorrection()
-  })
+    if (!mainWindow || mainWindow.isDestroyed()) {
+      return
+    }
 
-  mainWindow.on('moved', () => {
-    scheduleDisplayTransitionCorrection()
+    const displayId = displayForBounds(mainWindow.getBounds()).id
+    if (displayId === lastDisplayId) {
+      return
+    }
+
+    lastDisplayId = displayId
+    displayChangeResizeLockUntil = Date.now() + DISPLAY_CHANGE_RESIZE_LOCK_MS
+    scheduleDisplayChangeModeReapply()
   })
 
   mainWindow.once('ready-to-show', () => {
@@ -450,7 +388,7 @@ function normalizeBackgroundOpacity(value: number | null | undefined): number | 
 async function readSettings(): Promise<StoredSettings> {
   try {
     const content = await readFile(settingsPath(), 'utf8')
-    const parsed = JSON.parse(content) as Partial<StoredSettings>
+    const parsed = JSON.parse(content) as Partial<LegacyStoredSettings>
     const parsedAppearance = {
       ...defaultSettings.appearance,
       ...(parsed.appearance ?? {})
@@ -458,7 +396,7 @@ async function readSettings(): Promise<StoredSettings> {
 
     return {
       notesDir: parsed.notesDir ?? defaultSettings.notesDir,
-      windowBounds: parsed.windowBounds ?? defaultSettings.windowBounds,
+      windowBounds: normalizeStoredWindowBounds(parsed.windowBounds),
       appearance: {
         ...parsedAppearance,
         backgroundColor: normalizeHexColor(parsedAppearance.backgroundColor),
@@ -988,32 +926,13 @@ ipcMain.handle('notes:rename-folder', async (_event, folderPath: string, name: s
 
 ipcMain.handle('window:set-sidebar-collapsed', async (_event, collapsed: boolean) => {
   if (!mainWindow || mainWindow.isDestroyed()) {
-    return
+    const workArea = currentWorkArea()
+    return computeDefaultWindowBounds(workArea, collapsed ? 'collapsed' : 'expanded')
   }
 
-  const [currentWidth, currentHeight] = mainWindow.getSize()
-
-  if (collapsed) {
-    expandedSize = {
-      width: Math.max(currentWidth, EXPANDED_MIN_WIDTH),
-      height: currentHeight
-    }
-    sidebarCollapsed = true
-
-    mainWindow.setMinimumSize(COLLAPSED_MIN_WIDTH, EXPANDED_MIN_HEIGHT)
-    resizeWindowWithinVisibleArea(Math.max(collapsedSize.width, COLLAPSED_MIN_WIDTH), collapsedSize.height)
-
-    return
-  }
-
-  collapsedSize = {
-    width: Math.max(currentWidth, COLLAPSED_MIN_WIDTH),
-    height: currentHeight
-  }
-  sidebarCollapsed = false
-  mainWindow.setMinimumSize(EXPANDED_MIN_WIDTH, EXPANDED_MIN_HEIGHT)
-  resizeWindowWithinVisibleArea(Math.max(expandedSize.width, EXPANDED_MIN_WIDTH), expandedSize.height)
-  schedulePersistWindowBounds(Math.max(expandedSize.width, EXPANDED_MIN_WIDTH), expandedSize.height)
+  clearDisplayChangeReapplyTimer()
+  await persistWindowBounds(mainWindow.getBounds(), currentWindowSizeMode)
+  return applyWindowSizeMode(collapsed ? 'collapsed' : 'expanded')
 })
 
 ipcMain.handle('window:get-state', async () => {

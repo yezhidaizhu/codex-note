@@ -74,7 +74,7 @@ const { isResizing: isSidebarResizing, beginResize: beginSidebarResize } = usePa
       :sidebar-collapsed="sidebarCollapsed"
       :notes-dir="notesDir"
       :is-pinned="isPinned"
-      @toggleSidebar="store.sidebarCollapsed = !store.sidebarCollapsed"
+      @toggleSidebar="store.toggleSidebarCollapsed()"
       @createNote="noteEditor.createNoteAndFocus()"
       @togglePinned="store.togglePinned"
     />

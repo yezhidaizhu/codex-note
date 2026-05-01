@@ -482,9 +482,18 @@ export const useNotesStore = defineStore('notes', () => {
     }
   }
 
-  watch(sidebarCollapsed, (collapsed) => {
-    void getNotesApi().setSidebarCollapsed(collapsed)
-  })
+  async function toggleSidebarCollapsed(nextCollapsed = !sidebarCollapsed.value) {
+    const previousCollapsed = sidebarCollapsed.value
+
+    try {
+      sidebarCollapsed.value = nextCollapsed
+      await getNotesApi().setSidebarCollapsed(nextCollapsed)
+      errorMessage.value = ''
+    } catch (error) {
+      sidebarCollapsed.value = previousCollapsed
+      errorMessage.value = error instanceof Error ? error.message : '切换侧边栏失败。'
+    }
+  }
 
   watch(
     () => ({ note: activeNote.value, dir: notesDir.value }),
@@ -545,6 +554,7 @@ export const useNotesStore = defineStore('notes', () => {
     renameNote,
     renameFolder,
     togglePinned,
+    toggleSidebarCollapsed,
     toggleFolderExpanded,
     countNotesInFolder,
   }
