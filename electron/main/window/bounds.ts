@@ -64,6 +64,17 @@ export function clampWindowBounds(bounds: WindowBounds, workArea: Electron.Recta
   }
 }
 
+export function clampWindowFrameToWorkArea(bounds: Electron.Rectangle, workArea: Electron.Rectangle): Electron.Rectangle {
+  const maxX = workArea.x + Math.max(0, workArea.width - bounds.width)
+  const maxY = workArea.y + Math.max(0, workArea.height - bounds.height)
+
+  return {
+    ...bounds,
+    x: clamp(bounds.x, workArea.x, maxX),
+    y: clamp(bounds.y, workArea.y, maxY)
+  }
+}
+
 export function computeDefaultWindowBounds(workArea: Electron.Rectangle, mode: WindowSizeMode): WindowBounds {
   if (mode === 'collapsed') {
     return clampWindowBounds(

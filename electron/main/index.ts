@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url'
 import { app, BrowserWindow, clipboard, dialog, globalShortcut, ipcMain, Menu, nativeImage, nativeTheme, screen, Tray } from 'electron'
 import { MAIN_CONFIG } from './config'
 import {
+  clampWindowFrameToWorkArea,
   clampWindowBounds,
   computeDefaultWindowBounds,
   getWindowMinimumSize,
@@ -254,18 +255,19 @@ async function applyWindowSizeMode(mode: WindowSizeMode): Promise<WindowBounds> 
   const targetBounds = settings.windowBounds?.[mode] ?? computeDefaultWindowBounds(workArea, mode)
   const nextBounds = clampWindowBounds(targetBounds, workArea, mode)
   const minimumSize = getWindowMinimumSize(mode)
+  const nextFrame = clampWindowFrameToWorkArea(
+    {
+      ...currentBounds,
+      width: nextBounds.width,
+      height: nextBounds.height
+    },
+    workArea
+  )
 
   mainWindow.setMinimumSize(minimumSize.width, minimumSize.height)
-  mainWindow.setBounds({
-    ...currentBounds,
-    width: nextBounds.width,
-    height: nextBounds.height
-  })
-  schedulePersistWindowBounds({
-    ...currentBounds,
-    width: nextBounds.width,
-    height: nextBounds.height
-  }, mode)
+  mainWindow.setBounds(nextFrame)
+  lastDisplayId = displayForBounds(nextFrame).id
+  schedulePersistWindowBounds(nextFrame, mode)
 
   return nextBounds
 }
