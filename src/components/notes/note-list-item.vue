@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { FileText } from 'lucide-vue-next'
+import { FileText, Pin } from 'lucide-vue-next'
 import Button from '@/components/ui/button.vue'
 import { cn } from '@/lib/utils'
 
@@ -11,12 +11,14 @@ const props = withDefaults(
     highlightQuery?: string
     dateLabel: string
     selected: boolean
+    isPinned?: boolean
     selectionMode?: boolean
     checked?: boolean
     draggable?: boolean
     insideFolder?: boolean
   }>(),
   {
+    isPinned: false,
     selectionMode: false,
     checked: false,
     draggable: false,
@@ -31,6 +33,7 @@ const emit = defineEmits<{
   (e: 'contextMenu', event: MouseEvent): void
   (e: 'dragStart', event: DragEvent): void
   (e: 'dragEnd'): void
+  (e: 'togglePinned', event: MouseEvent): void
 }>()
 
 function rowClass() {
@@ -100,7 +103,7 @@ const previewParts = computed(() => buildHighlightedParts(props.matchPreview ?? 
     data-note-item="true"
     :class="
       cn(
-        'h-auto w-full items-start justify-start rounded-[calc(var(--radius)-0.2rem)] px-[var(--tree-item-pad-x)] py-[var(--tree-item-pad-y)] text-left hover:text-[var(--foreground)]',
+        'group h-auto w-full items-start justify-start rounded-[calc(var(--radius)-0.2rem)] px-[var(--tree-item-pad-x)] py-[var(--tree-item-pad-y)] text-left hover:text-[var(--foreground)]',
         rowClass(),
       )
     "
@@ -163,7 +166,34 @@ const previewParts = computed(() => buildHighlightedParts(props.matchPreview ?? 
           </p>
         </div>
       </div>
-      <span class="text-ui-xs shrink-0 text-[var(--muted-foreground)]">{{ dateLabel }}</span>
+      <div class="relative ml-auto h-6 min-w-[3.5rem] shrink-0">
+        <span
+          class="text-ui-xs absolute inset-y-0 right-0 flex items-center gap-1 text-[var(--muted-foreground)] group-hover:hidden"
+        >
+          <span>{{ dateLabel }}</span>
+          <Pin v-if="isPinned" class="h-3 w-3 fill-current text-[var(--muted-foreground)]" />
+        </span>
+        <div
+          class="absolute inset-y-0 right-0 hidden items-center justify-end group-hover:flex"
+        >
+          <button
+            type="button"
+            class="flex h-6 w-6 items-center justify-center rounded-md text-[var(--muted-foreground)] transition-colors hover:bg-[var(--interactive-hover)] hover:text-[var(--foreground)]"
+            :aria-label="isPinned ? '取消置顶笔记' : '置顶笔记'"
+            :title="isPinned ? '取消置顶笔记' : '置顶笔记'"
+            @click.stop="emit('togglePinned', $event)"
+          >
+            <Pin
+              :class="
+                cn(
+                  'h-3.5 w-3.5',
+                  isPinned ? 'fill-current text-[var(--primary)]' : 'fill-transparent text-[var(--muted-foreground)]',
+                )
+              "
+            />
+          </button>
+        </div>
+      </div>
     </div>
   </Button>
 </template>

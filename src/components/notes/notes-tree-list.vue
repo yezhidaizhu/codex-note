@@ -19,6 +19,7 @@ const props = defineProps<{
   searchActiveIndex: number
   isBatchSelecting: boolean
   selectedPaths: string[]
+  pinnedNotePaths: string[]
   expandedFolderPaths: string[]
 }>()
 
@@ -31,6 +32,7 @@ const emit = defineEmits<{
   (e: 'toggleFolderExpanded', path: string): void
   (e: 'moveNoteToFolder', payload: { path: string; targetFolderPath: string | null }): void
   (e: 'moveFolderToFolder', payload: { path: string; targetFolderPath: string | null }): void
+  (e: 'togglePinnedNote', path: string): void
 }>()
 
 const draggingItem = ref<DraggingItem>(null)
@@ -46,7 +48,17 @@ const rootFolders = computed(() =>
     .sort((left, right) => left.name.localeCompare(right.name, 'zh-Hans-CN')),
 )
 
-const rootNotes = computed(() => props.notes.filter((note) => note.parentPath === null))
+const pinnedNotes = computed(() =>
+  props.pinnedNotePaths
+    .map((path) => props.notes.find((note) => note.path === path))
+    .filter((note): note is NoteListItemData => Boolean(note)),
+)
+
+const pinnedPathSet = computed(() => new Set(props.pinnedNotePaths))
+
+const rootNotes = computed(() =>
+  props.notes.filter((note) => note.parentPath === null && !pinnedPathSet.value.has(note.path)),
+)
 
 const foldersByParent = computed<Record<string, FolderListItemData[]>>(() => {
   const groups: Record<string, FolderListItemData[]> = {}
@@ -65,6 +77,7 @@ const foldersByParent = computed<Record<string, FolderListItemData[]>>(() => {
 const notesByParent = computed<Record<string, NoteListItemData[]>>(() => {
   const groups: Record<string, NoteListItemData[]> = {}
   for (const note of props.notes) {
+    if (pinnedPathSet.value.has(note.path)) continue
     const key = note.parentPath ?? '__root__'
     ;(groups[key] ??= []).push(note)
   }
@@ -147,7 +160,10 @@ watch(
     </div>
   </div>
 
-  <div v-else-if="!isSearching && rootFolders.length === 0 && rootNotes.length === 0" class="px-[var(--tree-list-pad-x)] pb-[var(--tree-list-pad-bottom)]">
+  <div
+    v-else-if="!isSearching && rootFolders.length === 0 && rootNotes.length === 0 && pinnedNotes.length === 0"
+    class="px-[var(--tree-list-pad-x)] pb-[var(--tree-list-pad-bottom)]"
+  >
     <div
       class="rounded-[var(--radius)] border border-dashed border-[color-mix(in_srgb,var(--border)_85%,transparent)] bg-[color-mix(in_srgb,var(--card)_42%,transparent)] p-[var(--space-4)] text-sm text-[var(--muted-foreground)]"
     >
@@ -177,9 +193,11 @@ watch(
         :highlight-query="query"
         :date-label="formatCompactDate(note.updatedAt)"
         :selected="searchActiveIndex === index"
+        :is-pinned="pinnedNotePaths.includes(note.path)"
         :selection-mode="isBatchSelecting"
         :checked="selectedPaths.includes(note.path)"
         @toggleChecked="emit('toggleNoteSelection', note.path)"
+        @togglePinned="emit('togglePinnedNote', note.path)"
         @open="emit('openSearchResultAt', index)"
         @context-menu="
           (event) => {
@@ -191,6 +209,33 @@ watch(
     </template>
 
     <template v-else>
+      <div v-if="pinnedNotes.length > 0" class="flex flex-col" :style="{ gap: 'var(--tree-list-gap)' }">
+        <NoteListItem
+          v-for="note in pinnedNotes"
+          :key="note.path"
+          :label="getListLabel(note)"
+          :match-preview="note.matchPreview"
+          :highlight-query="''"
+          :date-label="formatCompactDate(note.updatedAt)"
+          :selected="selectedPath === note.path"
+          :is-pinned="true"
+          :selection-mode="isBatchSelecting"
+          :checked="selectedPaths.includes(note.path)"
+          :draggable="!isBatchSelecting"
+          @togglePinned="emit('togglePinnedNote', note.path)"
+          @toggleChecked="emit('toggleNoteSelection', note.path)"
+          @open="emit('openNote', note.path)"
+          @context-menu="
+            (event) => {
+              if (isBatchSelecting) return
+              emit('requestNoteContextMenu', { path: note.path, x: event.clientX, y: event.clientY })
+            }
+          "
+          @drag-start="onItemDragStart('note', note.path, $event)"
+          @drag-end="onItemDragEnd"
+        />
+      </div>
+
       <NotesTreeFolderNode
         v-for="folder in rootFolders"
         :key="folder.path"
@@ -202,6 +247,7 @@ watch(
         :selected-path="selectedPath"
         :is-batch-selecting="isBatchSelecting"
         :selected-paths="selectedPaths"
+        :pinned-note-paths="pinnedNotePaths"
         :dragging-item="draggingItem"
         :drop-target-folder-path="dropTargetFolderPath"
         @open-note="emit('openNote', $event)"
@@ -211,6 +257,7 @@ watch(
         @toggle-folder-expanded="emit('toggleFolderExpanded', $event)"
         @move-note-to-folder="emit('moveNoteToFolder', $event)"
         @move-folder-to-folder="emit('moveFolderToFolder', $event)"
+        @toggle-pinned-note="emit('togglePinnedNote', $event)"
         @open-search-result-at="emit('openSearchResultAt', $event)"
         @item-drag-start="onItemDragStart($event.type, $event.path, $event.event)"
         @item-drag-end="onItemDragEnd"
@@ -235,11 +282,13 @@ watch(
           :label="getListLabel(note)"
           :match-preview="note.matchPreview"
           :highlight-query="''"
-          :date-label="formatCompactDate(note.updatedAt)"
-          :selected="selectedPath === note.path"
+        :date-label="formatCompactDate(note.updatedAt)"
+        :selected="selectedPath === note.path"
+        :is-pinned="pinnedNotePaths.includes(note.path)"
           :selection-mode="isBatchSelecting"
           :checked="selectedPaths.includes(note.path)"
           :draggable="!isBatchSelecting"
+          @togglePinned="emit('togglePinnedNote', note.path)"
           @toggleChecked="emit('toggleNoteSelection', note.path)"
           @open="emit('openNote', note.path)"
           @context-menu="

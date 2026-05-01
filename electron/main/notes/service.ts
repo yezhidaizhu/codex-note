@@ -59,7 +59,7 @@ type NotesIndexState = {
 type SaveNotePayload = {
   currentPath?: string | null
   parentPath: string | null
-  title: string
+  name?: string
   content: string
 }
 
@@ -538,7 +538,6 @@ export function createNotesService(options: NotesServiceOptions) {
   }
 
   async function saveNote(notesDir: string, payload: SaveNotePayload): Promise<{ note: NotePayload; notes: NoteListItem[]; folders: FolderListItem[] }> {
-    const normalizedTitle = normalizeTitle(payload.title)
     const currentPath = normalizeRelativePath(payload.currentPath ?? null)
     let nextPath: string
 
@@ -550,7 +549,8 @@ export function createNotesService(options: NotesServiceOptions) {
       if (parentPath) {
         await ensureDir(resolveInNotesDir(notesDir, parentPath))
       }
-      nextPath = await uniqueNotePath(notesDir, parentPath, normalizedTitle)
+      const preferredName = payload.name?.trim() || firstMeaningfulLine(payload.content) || 'Untitled'
+      nextPath = await uniqueNotePath(notesDir, parentPath, preferredName)
       await writeFile(resolveInNotesDir(notesDir, nextPath), payload.content, 'utf8')
     }
 

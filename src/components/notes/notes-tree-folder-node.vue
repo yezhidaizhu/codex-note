@@ -21,6 +21,7 @@ const props = defineProps<{
   selectedPath: string | null
   isBatchSelecting: boolean
   selectedPaths: string[]
+  pinnedNotePaths: string[]
   draggingItem: DraggingItem
   dropTargetFolderPath: string | null
 }>()
@@ -33,6 +34,7 @@ const emit = defineEmits<{
   (e: 'toggleFolderExpanded', path: string): void
   (e: 'moveNoteToFolder', payload: { path: string; targetFolderPath: string | null }): void
   (e: 'moveFolderToFolder', payload: { path: string; targetFolderPath: string | null }): void
+  (e: 'togglePinnedNote', path: string): void
   (e: 'itemDragStart', payload: { type: 'note' | 'folder'; path: string; event: DragEvent }): void
   (e: 'itemDragEnd'): void
   (e: 'setDropTarget', path: string): void
@@ -153,6 +155,7 @@ function iconClass() {
         :selected-path="selectedPath"
         :is-batch-selecting="isBatchSelecting"
         :selected-paths="selectedPaths"
+        :pinned-note-paths="pinnedNotePaths"
         :dragging-item="draggingItem"
         :drop-target-folder-path="dropTargetFolderPath"
         @open-note="emit('openNote', $event)"
@@ -162,6 +165,7 @@ function iconClass() {
         @toggle-folder-expanded="emit('toggleFolderExpanded', $event)"
         @move-note-to-folder="emit('moveNoteToFolder', $event)"
         @move-folder-to-folder="emit('moveFolderToFolder', $event)"
+        @toggle-pinned-note="emit('togglePinnedNote', $event)"
         @item-drag-start="emit('itemDragStart', $event)"
         @item-drag-end="emit('itemDragEnd')"
         @set-drop-target="emit('setDropTarget', $event)"
@@ -174,11 +178,13 @@ function iconClass() {
         :label="getListLabel(note)"
         :date-label="formatCompactDate(note.updatedAt)"
         :selected="selectedPath === note.path"
+        :is-pinned="pinnedNotePaths.includes(note.path)"
         :selection-mode="isBatchSelecting"
         :checked="selectedPaths.includes(note.path)"
         :draggable="!isBatchSelecting"
         :inside-folder="true"
         @toggleChecked="emit('toggleNoteSelection', note.path)"
+        @togglePinned="emit('togglePinnedNote', note.path)"
         @open="emit('openNote', note.path)"
         @context-menu="
           (event) => {

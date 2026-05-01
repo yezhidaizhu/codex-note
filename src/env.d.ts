@@ -27,7 +27,7 @@ declare global {
       getSearchMode: () => Promise<{ mode: 'memory' | 'ripgrep' }>
       setSearchMode: (mode: 'memory' | 'ripgrep') => Promise<{ mode: 'memory' | 'ripgrep' }>
       readNote: (path: string) => Promise<NotePayload>
-      saveNote: (payload: { currentPath?: string | null; parentPath: string | null; title: string; content: string }) => Promise<SaveNoteResult>
+      saveNote: (payload: { currentPath?: string | null; parentPath: string | null; name?: string; content: string }) => Promise<SaveNoteResult>
       deleteNote: (path: string) => Promise<NoteTreeResult>
       createFolder: (parentPath: string | null, name: string) => Promise<NoteTreeResult>
       deleteFolder: (path: string) => Promise<NoteTreeResult>
@@ -37,6 +37,7 @@ declare global {
       renameFolder: (path: string, name: string) => Promise<RenameFolderResult>
       updateAppearance: (appearance: AppearanceSettings) => Promise<AppearanceSettings>
       updateQuickCreateSettings: (quickCreate: QuickCreateSettings) => Promise<QuickCreateSettings>
+      updatePinnedNotePaths: (paths: string[]) => Promise<string[]>
       setSidebarCollapsed: (collapsed: boolean) => Promise<void>
       getWindowState: () => Promise<{ isAlwaysOnTop: boolean }>
       setAlwaysOnTop: (pinned: boolean) => Promise<{ isAlwaysOnTop: boolean }>

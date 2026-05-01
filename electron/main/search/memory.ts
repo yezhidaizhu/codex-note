@@ -16,7 +16,7 @@ export function searchNotesInMemory(
 
   return notes.filter((item) => {
     const indexedContent = searchTexts.get(item.path) ?? ''
-    return [item.title, item.path].some((field) => field.toLowerCase().includes(keyword)) || indexedContent.includes(keyword)
+    return [item.name, item.title, item.path].some((field) => field.toLowerCase().includes(keyword)) || indexedContent.includes(keyword)
   }).map((item) => {
     const indexedContent = searchTexts.get(item.path) ?? ''
     const matchIndex = indexedContent.indexOf(keyword)

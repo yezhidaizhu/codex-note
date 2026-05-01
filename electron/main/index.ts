@@ -15,6 +15,7 @@ import {
   readSettings,
   sanitizeBackgroundColor,
   sanitizeBackgroundOpacity,
+  sanitizePinnedNotePaths,
   sanitizeQuickCreateDirectory,
   sanitizeQuickCreateMode,
   sanitizeQuickCreateTargetPath,
@@ -471,7 +472,8 @@ ipcMain.handle('settings:get', async () => {
     ...settings,
     notes: noteTree.notes,
     folders: noteTree.folders,
-    appearance: settings.appearance
+    appearance: settings.appearance,
+    pinnedNotePaths: settings.pinnedNotePaths
   }
 })
 
@@ -496,7 +498,8 @@ ipcMain.handle('notes:choose-directory', async () => {
     notes: noteTree.notes,
     folders: noteTree.folders,
     appearance: current.appearance,
-    quickCreate: current.quickCreate
+    quickCreate: current.quickCreate,
+    pinnedNotePaths: current.pinnedNotePaths
   }
 })
 
@@ -549,6 +552,18 @@ ipcMain.handle('settings:update-quick-create', async (_event, quickCreate: Store
   return nextQuickCreate
 })
 
+ipcMain.handle('settings:update-pinned-note-paths', async (_event, pinnedNotePaths: string[]) => {
+  const current = await readSettings()
+  const nextPinnedNotePaths = sanitizePinnedNotePaths(pinnedNotePaths)
+
+  await writeSettings({
+    ...current,
+    pinnedNotePaths: nextPinnedNotePaths
+  })
+
+  return nextPinnedNotePaths
+})
+
 ipcMain.handle('system:get-appearance', async () => currentSystemAppearance())
 
 ipcMain.handle('notes:list', async () => {
@@ -581,7 +596,7 @@ ipcMain.handle('notes:read', async (_event, notePath: string) => {
 
 ipcMain.handle(
   'notes:save',
-  async (_event, payload: { currentPath?: string | null; parentPath: string | null; title: string; content: string }) => {
+  async (_event, payload: { currentPath?: string | null; parentPath: string | null; name?: string; content: string }) => {
     const notesDir = await notesService.getNotesDirOrThrow()
     return notesService.saveNote(notesDir, payload)
   }

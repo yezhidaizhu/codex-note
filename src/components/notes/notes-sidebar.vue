@@ -18,6 +18,7 @@ defineProps<{
   isSidebarResizing: boolean
   isBatchSelecting: boolean
   selectedPaths: string[]
+  pinnedNotePaths: string[]
   expandedFolderPaths: string[]
   listActionsMenuOpen: boolean
 }>()
@@ -37,6 +38,7 @@ const emit = defineEmits<{
   (e: 'toggleFolderExpanded', path: string): void
   (e: 'moveNoteToFolder', payload: { path: string; targetFolderPath: string | null }): void
   (e: 'moveFolderToFolder', payload: { path: string; targetFolderPath: string | null }): void
+  (e: 'togglePinnedNote', path: string): void
   (e: 'requestCreateFolder', parentPath: string | null): void
   (e: 'openSearchResultAt', index: number): void
   (e: 'moveSearchSelection', direction: 1 | -1): void
@@ -191,6 +193,7 @@ function onQueryKeydown(event: KeyboardEvent) {
         :search-active-index="searchActiveIndex"
         :is-batch-selecting="isBatchSelecting"
         :selected-paths="selectedPaths"
+        :pinned-note-paths="pinnedNotePaths"
         :expanded-folder-paths="expandedFolderPaths"
         @open-note="emit('openNote', $event)"
         @toggle-note-selection="emit('toggleNoteSelection', $event)"
@@ -199,6 +202,7 @@ function onQueryKeydown(event: KeyboardEvent) {
         @toggle-folder-expanded="emit('toggleFolderExpanded', $event)"
         @move-note-to-folder="emit('moveNoteToFolder', $event)"
         @move-folder-to-folder="emit('moveFolderToFolder', $event)"
+        @toggle-pinned-note="emit('togglePinnedNote', $event)"
         @open-search-result-at="emit('openSearchResultAt', $event)"
       />
 

@@ -35,7 +35,11 @@ export async function searchNotesWithRipgrep(notesDir: string, notes: NoteListIt
     return notes
   }
 
+  const normalizedKeyword = keyword.toLowerCase()
   const matchedPreviews = new Map<string, string>()
+  const matchedByName = new Set<string>(
+    notes.filter((note) => [note.name, note.title, note.path].some((field) => field.toLowerCase().includes(normalizedKeyword))).map((note) => note.path),
+  )
 
   await new Promise<void>((resolvePromise, rejectPromise) => {
     const child = spawn(resolveRipgrepPath(), ['--json', '--ignore-case', '--glob', '*.md', keyword, notesDir], {
@@ -115,7 +119,7 @@ export async function searchNotesWithRipgrep(notesDir: string, notes: NoteListIt
   })
 
   return notes
-    .filter((note) => matchedPreviews.has(note.path))
+    .filter((note) => matchedByName.has(note.path) || matchedPreviews.has(note.path))
     .map((note) => ({
       ...note,
       matchPreview: matchedPreviews.get(note.path) ?? null

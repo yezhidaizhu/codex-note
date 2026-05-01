@@ -29,6 +29,7 @@ const {
   sidebarCollapsed,
   sidebarWidth,
   isPinned,
+  pinnedNotePaths,
   expandedFolderPaths,
 } = storeToRefs(store)
 
@@ -94,6 +95,7 @@ const { isResizing: isSidebarResizing, beginResize: beginSidebarResize } = usePa
         :is-sidebar-resizing="isSidebarResizing"
         :is-batch-selecting="isBatchSelecting"
         :selected-paths="selectedPaths"
+        :pinned-note-paths="pinnedNotePaths"
         :expanded-folder-paths="expandedFolderPaths"
         :list-actions-menu-open="listActionsMenuOpen"
         @update:query="store.query = $event"
@@ -110,6 +112,7 @@ const { isResizing: isSidebarResizing, beginResize: beginSidebarResize } = usePa
         @toggleFolderExpanded="store.toggleFolderExpanded($event)"
         @moveNoteToFolder="store.moveNote($event.path, $event.targetFolderPath)"
         @moveFolderToFolder="store.moveFolder($event.path, $event.targetFolderPath)"
+        @togglePinnedNote="store.togglePinnedNote($event)"
         @requestCreateFolder="openCreateFolderDialog($event)"
         @openSearchResultAt="store.openSearchResultAt($event)"
         @moveSearchSelection="store.moveSearchSelection($event)"

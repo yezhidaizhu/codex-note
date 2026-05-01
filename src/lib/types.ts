@@ -51,6 +51,7 @@ export type AppSettings = {
   folders: FolderListItem[]
   appearance: AppearanceSettings
   quickCreate: QuickCreateSettings
+  pinnedNotePaths: string[]
 }
 
 export type SaveNoteResult = {

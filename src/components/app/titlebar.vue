@@ -54,16 +54,14 @@ const MAC_WINDOW_CONTROLS_GAP = 'pl-[78px]'
         :class="
           [
             'h-6 w-6 transition-all duration-200',
-            isPinned
-              ? 'bg-[var(--interactive-icon-surface-active)] text-[var(--primary)] hover:bg-[var(--interactive-selected-hover)] hover:text-[var(--primary)]'
-              : 'text-[var(--muted-foreground)] hover:bg-[var(--interactive-hover)] hover:text-[var(--foreground)]',
+            isPinned ? 'text-[var(--primary)] hover:text-[var(--primary)]' : 'text-[var(--muted-foreground)] hover:text-[var(--foreground)]',
           ].join(' ')
         "
         :aria-label="isPinned ? '取消置顶' : '置顶窗口'"
         :title="isPinned ? '取消置顶' : '置顶窗口'"
         @click="emit('togglePinned')"
       >
-        <Pin :class="['size-3.5', isPinned ? 'rotate-0' : 'rotate-45'].join(' ')" />
+        <Pin :class="['size-3.5', isPinned ? 'fill-current' : 'fill-transparent'].join(' ')" />
       </Button>
     </div>
   </div>

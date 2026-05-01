@@ -28,7 +28,7 @@ const api = {
   getSearchMode: () => ipcRenderer.invoke('notes:get-search-mode') as Promise<{ mode: 'memory' | 'ripgrep' }>,
   setSearchMode: (mode: 'memory' | 'ripgrep') => ipcRenderer.invoke('notes:set-search-mode', mode) as Promise<{ mode: 'memory' | 'ripgrep' }>,
   readNote: (path: string) => ipcRenderer.invoke('notes:read', path),
-  saveNote: (payload: { currentPath?: string | null; parentPath: string | null; title: string; content: string }) =>
+  saveNote: (payload: { currentPath?: string | null; parentPath: string | null; name?: string; content: string }) =>
     ipcRenderer.invoke('notes:save', payload),
   deleteNote: (path: string) => ipcRenderer.invoke('notes:delete', path),
   createFolder: (parentPath: string | null, name: string) => ipcRenderer.invoke('notes:create-folder', parentPath, name),
@@ -39,6 +39,7 @@ const api = {
   renameFolder: (path: string, name: string) => ipcRenderer.invoke('notes:rename-folder', path, name),
   updateAppearance: (appearance: AppearanceSettings) => ipcRenderer.invoke('settings:update-appearance', appearance),
   updateQuickCreateSettings: (quickCreate: QuickCreateSettings) => ipcRenderer.invoke('settings:update-quick-create', quickCreate),
+  updatePinnedNotePaths: (paths: string[]) => ipcRenderer.invoke('settings:update-pinned-note-paths', paths) as Promise<string[]>,
   setSidebarCollapsed: (collapsed: boolean) => ipcRenderer.invoke('window:set-sidebar-collapsed', collapsed),
   getWindowState: () => ipcRenderer.invoke('window:get-state'),
   setAlwaysOnTop: (pinned: boolean) => ipcRenderer.invoke('window:set-always-on-top', pinned)

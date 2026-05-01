@@ -86,9 +86,36 @@ function normalizeNoteLabel(value: string, fallback: string): string {
   return (cleaned || fallback).slice(0, NOTE_LABEL_MAX_LENGTH).trim()
 }
 
-function inferTitleFromContent(content: string): string {
+function inferInitialNoteName(content: string): string {
   const firstLine = getMeaningfulLines(content)[0] ?? ''
   return normalizeNoteLabel(firstLine, 'Untitled')
+}
+
+function noteLabelFromName(name: string): string {
+  const stem = name.replace(/\.md$/i, '').trim()
+  return stem || 'Untitled'
+}
+
+function sortNotesByPinned(notes: NoteListItemData[], pinnedPaths: string[]): NoteListItemData[] {
+  if (pinnedPaths.length === 0) {
+    return notes
+  }
+
+  const pinnedIndex = new Map(pinnedPaths.map((path, index) => [path, index] as const))
+
+  return [...notes].sort((left, right) => {
+    const leftPinnedIndex = pinnedIndex.get(left.path)
+    const rightPinnedIndex = pinnedIndex.get(right.path)
+
+    if (leftPinnedIndex !== undefined && rightPinnedIndex !== undefined) {
+      return leftPinnedIndex - rightPinnedIndex
+    }
+
+    if (leftPinnedIndex !== undefined) return -1
+    if (rightPinnedIndex !== undefined) return 1
+
+    return new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime()
+  })
 }
 
 function replacePathPrefix(pathValue: string | null, sourcePrefix: string, targetPrefix: string): string | null {
@@ -114,8 +141,7 @@ export function formatCompactDate(value: string | null): string {
 }
 
 export function getListLabel(item: NoteListItemData): string {
-  const normalizedTitle = normalizeNoteLabel(item.title, '')
-  return normalizedTitle || formatCompactDate(item.updatedAt)
+  return noteLabelFromName(item.name)
 }
 
 export function buildDeleteMessage(count: number, label?: string): string {
@@ -141,6 +167,7 @@ export const useNotesStore = defineStore('notes', () => {
   const sidebarCollapsed = ref(false)
   const sidebarWidth = ref(312)
   const isPinned = ref(false)
+  const pinnedNotePaths = ref<string[]>([])
   const expandedFolderPaths = ref<string[]>([])
   const knownFolderPaths = ref<string[]>([])
   const lastSavedSnapshot = ref<{ path: string | null; content: string } | null>(null)
@@ -148,8 +175,8 @@ export const useNotesStore = defineStore('notes', () => {
   const editorFocusRequestId = ref(0)
 
   const filteredNotes = computed(() => {
-    if (!query.value.trim()) return notes.value
-    return searchResults.value ?? []
+    if (!query.value.trim()) return sortNotesByPinned(notes.value, pinnedNotePaths.value)
+    return sortNotesByPinned(searchResults.value ?? [], pinnedNotePaths.value)
   })
 
   let saveInFlight = false
@@ -157,6 +184,15 @@ export const useNotesStore = defineStore('notes', () => {
   let bootPromise: Promise<void> | null = null
   let hasBoundNotesTreeListener = false
   let searchRequestToken = 0
+
+  async function persistPinnedNotePaths(nextPaths: string[]) {
+    try {
+      pinnedNotePaths.value = await getNotesApi().updatePinnedNotePaths(nextPaths)
+      errorMessage.value = ''
+    } catch (error) {
+      errorMessage.value = error instanceof Error ? error.message : '更新置顶笔记失败。'
+    }
+  }
 
   function syncExpandedFolders(nextFolders: FolderListItem[]) {
     const previousKnown = new Set(knownFolderPaths.value)
@@ -174,6 +210,12 @@ export const useNotesStore = defineStore('notes', () => {
   function applyTreeResult(result: NoteTreeResult | SaveNoteResult | { notes: NoteListItemData[]; folders: FolderListItem[] }) {
     notes.value = result.notes
     folders.value = result.folders
+    const existingPaths = new Set(result.notes.map((note) => note.path))
+    const nextPinned = pinnedNotePaths.value.filter((path) => existingPaths.has(path))
+    if (nextPinned.length !== pinnedNotePaths.value.length) {
+      pinnedNotePaths.value = nextPinned
+      void persistPinnedNotePaths(nextPinned)
+    }
     syncExpandedFolders(result.folders)
   }
 
@@ -295,6 +337,7 @@ export const useNotesStore = defineStore('notes', () => {
       notes.value = settings.notes
       folders.value = settings.folders
       quickCreate.value = settings.quickCreate
+      pinnedNotePaths.value = settings.pinnedNotePaths.filter((path) => settings.notes.some((note) => note.path === path))
       syncExpandedFolders(settings.folders)
 
       if (settings.notes.length > 0) {
@@ -332,6 +375,7 @@ export const useNotesStore = defineStore('notes', () => {
       notes.value = result.notes
       folders.value = result.folders
       quickCreate.value = result.quickCreate
+      pinnedNotePaths.value = result.pinnedNotePaths.filter((path) => result.notes.some((note) => note.path === path))
       syncExpandedFolders(result.folders)
       query.value = ''
       searchResults.value = null
@@ -378,11 +422,10 @@ export const useNotesStore = defineStore('notes', () => {
     errorMessage.value = ''
 
     try {
-      const title = inferTitleFromContent(noteToSave.content)
       const result = await getNotesApi().saveNote({
         currentPath: noteToSave.path,
         parentPath: noteToSave.path ? pathParent(noteToSave.path) : noteToSave.parentPath,
-        title,
+        name: noteToSave.path ? undefined : inferInitialNoteName(noteToSave.content),
         content: noteToSave.content,
       })
 
@@ -489,6 +532,11 @@ export const useNotesStore = defineStore('notes', () => {
         }
       }
 
+      if (pinnedNotePaths.value.includes(pathValue)) {
+        pinnedNotePaths.value = pinnedNotePaths.value.map((path) => (path === pathValue ? result.note.path : path))
+        await persistPinnedNotePaths(pinnedNotePaths.value)
+      }
+
       errorMessage.value = ''
     } catch (error) {
       errorMessage.value = error instanceof Error ? error.message : '移动笔记失败。'
@@ -541,6 +589,11 @@ export const useNotesStore = defineStore('notes', () => {
         if (lastSavedSnapshot.value?.path === pathValue) {
           lastSavedSnapshot.value = { ...lastSavedSnapshot.value, path: result.note.path }
         }
+      }
+
+      if (pinnedNotePaths.value.includes(pathValue)) {
+        pinnedNotePaths.value = pinnedNotePaths.value.map((path) => (path === pathValue ? result.note.path : path))
+        await persistPinnedNotePaths(pinnedNotePaths.value)
       }
 
       errorMessage.value = ''
@@ -612,6 +665,17 @@ export const useNotesStore = defineStore('notes', () => {
     }
   }
 
+  async function togglePinnedNote(pathValue: string) {
+    const normalizedPath = normalizePath(pathValue)
+    if (!normalizedPath) return
+
+    const nextPaths = pinnedNotePaths.value.includes(normalizedPath)
+      ? pinnedNotePaths.value.filter((path) => path !== normalizedPath)
+      : [...pinnedNotePaths.value, normalizedPath]
+
+    await persistPinnedNotePaths(nextPaths)
+  }
+
   watch(
     query,
     (nextQuery, _prev, onCleanup) => {
@@ -676,6 +740,7 @@ export const useNotesStore = defineStore('notes', () => {
     sidebarCollapsed,
     sidebarWidth,
     isPinned,
+    pinnedNotePaths,
     expandedFolderPaths,
     editorFocusRequestId,
     ensureInitialized,
@@ -700,6 +765,7 @@ export const useNotesStore = defineStore('notes', () => {
     toggleFolderExpanded,
     countNotesInFolder,
     updateQuickCreateSettings,
+    togglePinnedNote,
   }
 })
 

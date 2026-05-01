@@ -20,6 +20,7 @@ export type StoredSettings = {
     targetPath: string
     writeClipboardOnCreate: boolean
   }
+  pinnedNotePaths: string[]
 }
 
 type LegacyStoredSettings = Omit<StoredSettings, 'windowBounds'> & {
@@ -42,7 +43,8 @@ export const defaultSettings: StoredSettings = {
     directory: '/快速创建',
     targetPath: '',
     writeClipboardOnCreate: false
-  }
+  },
+  pinnedNotePaths: []
 }
 
 function settingsPath(): string {
@@ -133,6 +135,28 @@ export function sanitizeQuickCreateWriteClipboardOnCreate(value: boolean | null 
   return typeof value === 'boolean' ? value : defaultSettings.quickCreate.writeClipboardOnCreate
 }
 
+export function sanitizePinnedNotePaths(value: string[] | null | undefined): string[] {
+  if (!Array.isArray(value)) {
+    return [...defaultSettings.pinnedNotePaths]
+  }
+
+  const deduped = new Set<string>()
+  for (const rawPath of value) {
+    if (typeof rawPath !== 'string') continue
+    const normalizedSegments = rawPath
+      .replace(/\\/g, '/')
+      .split('/')
+      .map((segment) => segment.trim())
+      .filter((segment) => segment.length > 0 && segment !== '.')
+
+    if (normalizedSegments.length === 0) continue
+    if (normalizedSegments.some((segment) => segment === '..')) continue
+    deduped.add(normalizedSegments.join('/'))
+  }
+
+  return [...deduped]
+}
+
 export async function readSettings(): Promise<StoredSettings> {
   try {
     const content = await readFile(settingsPath(), 'utf8')
@@ -159,7 +183,8 @@ export async function readSettings(): Promise<StoredSettings> {
         directory: sanitizeQuickCreateDirectory(parsedQuickCreate.directory),
         targetPath: sanitizeQuickCreateTargetPath(parsedQuickCreate.targetPath),
         writeClipboardOnCreate: sanitizeQuickCreateWriteClipboardOnCreate(parsedQuickCreate.writeClipboardOnCreate)
-      }
+      },
+      pinnedNotePaths: sanitizePinnedNotePaths(parsed.pinnedNotePaths)
     }
   } catch {
     return defaultSettings
