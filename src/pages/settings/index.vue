@@ -25,8 +25,8 @@ const { appearance } = storeToRefs(noteStyleStore)
 
 const sections = [
   { key: 'general', label: '通用' },
-  { key: 'automation', label: '自动化' },
   { key: 'appearance', label: '外观' },
+  { key: 'automation', label: '自动化' },
 ] as const
 const activeSectionKey = ref<(typeof sections)[number]['key']>('general')
 const settingsSidebarCollapsed = computed(() => false)
