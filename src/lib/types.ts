@@ -9,6 +9,8 @@ export type AppearanceSettings = {
   theme: AppearanceTheme
   density: AppearanceDensity
   transparentBackground: boolean
+  backgroundColor: string | null
+  backgroundOpacity: number | null
 }
 
 export type NoteListItem = {

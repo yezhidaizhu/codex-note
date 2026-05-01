@@ -7,12 +7,20 @@ import Button from '@/components/ui/button.vue'
 import AppearanceSettingsSection from '@/components/settings/appearance-settings-section.vue'
 import GeneralSettingsSection from '@/components/settings/general-settings-section.vue'
 import { usePanelResize } from '@/composables/use-panel-resize'
+import {
+  resolveAppearanceBackgroundColor,
+  resolveAppearanceBackgroundOpacity,
+  resolveAppearanceMode,
+  useNoteStyleStore,
+} from '@/state/note-style'
 import { useNotesStore } from '@/state/notes'
 import type { AppearanceDensity, AppearanceMode, AppearanceTheme } from '@/lib/types'
 
 const router = useRouter()
-const store = useNotesStore()
-const { notes, selectedPath, appearance, notesDir, sidebarWidth } = storeToRefs(store)
+const notesStore = useNotesStore()
+const noteStyleStore = useNoteStyleStore()
+const { notes, selectedPath, notesDir, sidebarWidth } = storeToRefs(notesStore)
+const { appearance } = storeToRefs(noteStyleStore)
 
 const sections = [
   { key: 'general', label: '通用' },
@@ -47,20 +55,36 @@ const densityOptions: Array<{ key: AppearanceDensity; label: string; description
   { key: 'compact', label: '紧凑', description: '' },
 ]
 
+const resolvedAppearanceMode = computed(() => resolveAppearanceMode(appearance.value.mode))
+const effectiveBackgroundColor = computed(() => resolveAppearanceBackgroundColor(appearance.value, resolvedAppearanceMode.value))
+const effectiveBackgroundOpacity = computed(() => resolveAppearanceBackgroundOpacity(appearance.value, resolvedAppearanceMode.value))
+
 function updateMode(mode: AppearanceMode) {
-  void store.updateAppearance({ ...appearance.value, mode })
+  void noteStyleStore.updateAppearance({ ...appearance.value, mode })
 }
 
 function updateTheme(theme: AppearanceTheme) {
-  void store.updateAppearance({ ...appearance.value, theme })
+  void noteStyleStore.updateAppearance({ ...appearance.value, theme })
 }
 
 function updateDensity(density: AppearanceDensity) {
-  void store.updateAppearance({ ...appearance.value, density })
+  void noteStyleStore.updateAppearance({ ...appearance.value, density })
 }
 
-function updateTransparentBackground(transparentBackground: boolean) {
-  void store.updateAppearance({ ...appearance.value, transparentBackground })
+function updateBackgroundColor(backgroundColor: string | null) {
+  void noteStyleStore.updateAppearance({ ...appearance.value, backgroundColor })
+}
+
+function updateBackgroundOpacity(backgroundOpacity: number | null) {
+  void noteStyleStore.updateAppearance({
+    ...appearance.value,
+    backgroundOpacity,
+    transparentBackground: backgroundOpacity === null ? true : backgroundOpacity < 100,
+  })
+}
+
+function resetAppearance() {
+  void noteStyleStore.resetAppearance()
 }
 </script>
 
@@ -156,19 +180,23 @@ function updateTransparentBackground(transparentBackground: boolean) {
           :notes-dir="notesDir"
           :notes-count="notesCount"
           :has-selected-note="hasSelectedNote"
-          @choose-directory="store.chooseDirectory"
+          @choose-directory="notesStore.chooseDirectory"
         />
 
         <AppearanceSettingsSection
           v-else
           :appearance="appearance"
+          :effective-background-color="effectiveBackgroundColor"
+          :effective-background-opacity="effectiveBackgroundOpacity"
           :mode-options="modeOptions"
           :theme-options="themeOptions"
           :density-options="densityOptions"
-          @update-transparent-background="updateTransparentBackground"
+          @update-background-color="updateBackgroundColor"
+          @update-background-opacity="updateBackgroundOpacity"
           @update-mode="updateMode"
           @update-theme="updateTheme"
           @update-density="updateDensity"
+          @reset-appearance="resetAppearance"
         />
       </div>
     </main>

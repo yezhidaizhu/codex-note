@@ -5,11 +5,17 @@ import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, nativeTheme, sc
 
 type StoredSettings = {
   notesDir: string | null
+  windowBounds: {
+    width: number
+    height: number
+  } | null
   appearance: {
     mode: 'system' | 'dark' | 'light'
     theme: 'ember' | 'ocean' | 'forest'
     density: 'comfortable' | 'compact'
     transparentBackground: boolean
+    backgroundColor: string | null
+    backgroundOpacity: number | null
   }
 }
 
@@ -57,18 +63,24 @@ type MoveFolderResult = {
 
 const NOTE_TITLE_MAX_LENGTH = 36
 const EXPANDED_MIN_WIDTH = 600
+const EXPANDED_MIN_HEIGHT = 600
 const COLLAPSED_MIN_WIDTH = 300
 const DEFAULT_COLLAPSED_WIDTH = 480
+const DEFAULT_WINDOW_WIDTH = 960
+const DEFAULT_WINDOW_HEIGHT = 760
 const WINDOW_EDGE_SNAP_THRESHOLD = 24
 const MIN_VISIBLE_HEADER_HEIGHT = 88
 
 const defaultSettings: StoredSettings = {
   notesDir: null,
+  windowBounds: null,
   appearance: {
     mode: 'system',
     theme: 'ember',
     density: 'comfortable',
-    transparentBackground: true
+    transparentBackground: true,
+    backgroundColor: null,
+    backgroundOpacity: null
   }
 }
 
@@ -76,8 +88,12 @@ let mainWindow: BrowserWindow | null = null
 let tray: Tray | null = null
 let isQuitting = false
 let sidebarCollapsed = false
-let expandedSize = { width: 1400, height: 920 }
-let collapsedSize = { width: DEFAULT_COLLAPSED_WIDTH, height: 920 }
+let expandedSize = { width: DEFAULT_WINDOW_WIDTH, height: DEFAULT_WINDOW_HEIGHT }
+let collapsedSize = { width: DEFAULT_COLLAPSED_WIDTH, height: DEFAULT_WINDOW_HEIGHT }
+let persistWindowBoundsTimer: NodeJS.Timeout | null = null
+let moveStabilizeTimer: NodeJS.Timeout | null = null
+let correctingDisplayTransition = false
+let lastDisplayId: number | null = null
 const currentDir = dirname(fileURLToPath(import.meta.url))
 const appIconPath = join(currentDir, '../../resources/icon.png')
 const trayTemplateIconPath = join(currentDir, '../../resources/trayTemplate.png')
@@ -159,6 +175,105 @@ function resizeWindowWithinVisibleArea(nextWidth: number, nextHeight: number): v
   mainWindow.setBounds(nextBounds)
 }
 
+function clampWindowWidth(width: number, workAreaWidth: number): number {
+  return clamp(width, EXPANDED_MIN_WIDTH, Math.max(EXPANDED_MIN_WIDTH, workAreaWidth))
+}
+
+function clampWindowHeight(height: number, workAreaHeight: number): number {
+  return clamp(height, EXPANDED_MIN_HEIGHT, Math.max(EXPANDED_MIN_HEIGHT, workAreaHeight))
+}
+
+function computeDefaultWindowSize(workArea: Electron.Rectangle) {
+  const allDisplays = screen.getAllDisplays()
+  const smallestWorkArea = allDisplays.reduce(
+    (smallest, display) => ({
+      width: Math.min(smallest.width, display.workArea.width),
+      height: Math.min(smallest.height, display.workArea.height)
+    }),
+    {
+      width: workArea.width,
+      height: workArea.height
+    }
+  )
+
+  return {
+    width: clampWindowWidth(Math.min(DEFAULT_WINDOW_WIDTH, Math.round(smallestWorkArea.width * 0.78)), workArea.width),
+    height: clampWindowHeight(Math.min(DEFAULT_WINDOW_HEIGHT, Math.round(smallestWorkArea.height * 0.82)), workArea.height)
+  }
+}
+
+async function persistWindowBounds(width: number, height: number): Promise<void> {
+  const current = await readSettings()
+  await writeSettings({
+    ...current,
+    windowBounds: {
+      width: Math.max(width, EXPANDED_MIN_WIDTH),
+      height: Math.max(height, EXPANDED_MIN_HEIGHT)
+    }
+  })
+}
+
+function schedulePersistWindowBounds(width: number, height: number): void {
+  if (persistWindowBoundsTimer) {
+    clearTimeout(persistWindowBoundsTimer)
+  }
+
+  persistWindowBoundsTimer = setTimeout(() => {
+    persistWindowBoundsTimer = null
+    void persistWindowBounds(width, height)
+  }, 180)
+}
+
+function desiredWindowSizeForDisplay(display: Electron.Display) {
+  if (sidebarCollapsed) {
+    return {
+      width: clamp(Math.max(collapsedSize.width, COLLAPSED_MIN_WIDTH), COLLAPSED_MIN_WIDTH, Math.max(COLLAPSED_MIN_WIDTH, display.workArea.width)),
+      height: clamp(Math.max(collapsedSize.height, EXPANDED_MIN_HEIGHT), EXPANDED_MIN_HEIGHT, Math.max(EXPANDED_MIN_HEIGHT, display.workArea.height))
+    }
+  }
+
+  return {
+    width: clampWindowWidth(expandedSize.width, display.workArea.width),
+    height: clampWindowHeight(expandedSize.height, display.workArea.height)
+  }
+}
+
+function scheduleDisplayTransitionCorrection(): void {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    return
+  }
+
+  if (moveStabilizeTimer) {
+    clearTimeout(moveStabilizeTimer)
+  }
+
+  moveStabilizeTimer = setTimeout(() => {
+    moveStabilizeTimer = null
+
+    if (!mainWindow || mainWindow.isDestroyed() || correctingDisplayTransition) {
+      return
+    }
+
+    const display = screen.getDisplayMatching(mainWindow.getBounds())
+    if (lastDisplayId === display.id) {
+      return
+    }
+
+    lastDisplayId = display.id
+    const desiredSize = desiredWindowSizeForDisplay(display)
+    const [currentWidth, currentHeight] = mainWindow.getSize()
+    if (currentWidth === desiredSize.width && currentHeight === desiredSize.height) {
+      return
+    }
+
+    correctingDisplayTransition = true
+    resizeWindowWithinVisibleArea(desiredSize.width, desiredSize.height)
+    setTimeout(() => {
+      correctingDisplayTransition = false
+    }, 0)
+  }, 120)
+}
+
 function createTray(): void {
   if (tray) {
     return
@@ -203,12 +318,26 @@ function createTray(): void {
   tray.on('right-click', () => tray?.popUpContextMenu(trayMenu))
 }
 
-function createWindow(): void {
+async function createWindow(): Promise<void> {
+  const settings = await readSettings()
+  const display = screen.getDisplayNearestPoint(screen.getCursorScreenPoint())
+  const workArea = display.workArea
+  const preferredSize = settings.windowBounds
+    ? {
+        width: clampWindowWidth(settings.windowBounds.width, workArea.width),
+        height: clampWindowHeight(settings.windowBounds.height, workArea.height)
+      }
+    : computeDefaultWindowSize(workArea)
+  const initialX = workArea.x + Math.round((workArea.width - preferredSize.width) / 2)
+  const initialY = workArea.y + Math.round((workArea.height - preferredSize.height) / 2)
+
   mainWindow = new BrowserWindow({
-    width: 1080,
-    height: 760,
+    width: preferredSize.width,
+    height: preferredSize.height,
+    x: initialX,
+    y: initialY,
     minWidth: EXPANDED_MIN_WIDTH,
-    minHeight: 600,
+    minHeight: EXPANDED_MIN_HEIGHT,
     show: false,
     titleBarStyle: 'hidden',
     transparent: true,
@@ -226,12 +355,13 @@ function createWindow(): void {
   const [initialWidth, initialHeight] = mainWindow.getSize()
   expandedSize = {
     width: Math.max(initialWidth, EXPANDED_MIN_WIDTH),
-    height: Math.max(initialHeight, 200)
+    height: Math.max(initialHeight, EXPANDED_MIN_HEIGHT)
   }
   collapsedSize = {
     width: Math.max(COLLAPSED_MIN_WIDTH, Math.min(DEFAULT_COLLAPSED_WIDTH, expandedSize.width)),
     height: expandedSize.height
   }
+  lastDisplayId = display.id
 
   mainWindow.on('will-resize', (_event, newBounds) => {
     if (!mainWindow || mainWindow.isDestroyed()) {
@@ -250,6 +380,15 @@ function createWindow(): void {
       width: Math.max(newBounds.width, EXPANDED_MIN_WIDTH),
       height: newBounds.height
     }
+    schedulePersistWindowBounds(expandedSize.width, expandedSize.height)
+  })
+
+  mainWindow.on('move', () => {
+    scheduleDisplayTransitionCorrection()
+  })
+
+  mainWindow.on('moved', () => {
+    scheduleDisplayTransitionCorrection()
   })
 
   mainWindow.once('ready-to-show', () => {
@@ -284,15 +423,46 @@ function settingsPath(): string {
   return join(app.getPath('userData'), 'settings.json')
 }
 
+function normalizeHexColor(value: string | null | undefined): string | null {
+  if (typeof value !== 'string') return null
+  const normalized = value.trim()
+  if (!/^#([\da-fA-F]{3}|[\da-fA-F]{6})$/.test(normalized)) {
+    return null
+  }
+
+  if (normalized.length === 4) {
+    return `#${normalized
+      .slice(1)
+      .split('')
+      .map((digit) => `${digit}${digit}`)
+      .join('')
+      .toLowerCase()}`
+  }
+
+  return normalized.toLowerCase()
+}
+
+function normalizeBackgroundOpacity(value: number | null | undefined): number | null {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return null
+  return Math.min(100, Math.max(0, Math.round(value)))
+}
+
 async function readSettings(): Promise<StoredSettings> {
   try {
     const content = await readFile(settingsPath(), 'utf8')
     const parsed = JSON.parse(content) as Partial<StoredSettings>
+    const parsedAppearance = {
+      ...defaultSettings.appearance,
+      ...(parsed.appearance ?? {})
+    }
+
     return {
       notesDir: parsed.notesDir ?? defaultSettings.notesDir,
+      windowBounds: parsed.windowBounds ?? defaultSettings.windowBounds,
       appearance: {
-        ...defaultSettings.appearance,
-        ...(parsed.appearance ?? {})
+        ...parsedAppearance,
+        backgroundColor: normalizeHexColor(parsedAppearance.backgroundColor),
+        backgroundOpacity: normalizeBackgroundOpacity(parsedAppearance.backgroundOpacity)
       }
     }
   } catch {
@@ -605,7 +775,7 @@ app.whenReady().then(() => {
   }
 
   createTray()
-  createWindow()
+  void createWindow()
 
   nativeTheme.on('updated', () => {
     if (!mainWindow || mainWindow.isDestroyed()) {
@@ -617,7 +787,7 @@ app.whenReady().then(() => {
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow()
+      void createWindow()
     }
   })
 })
@@ -675,7 +845,13 @@ ipcMain.handle('settings:update-appearance', async (_event, appearance: StoredSe
     mode: appearance.mode ?? current.appearance.mode,
     theme: appearance.theme ?? current.appearance.theme,
     density: appearance.density ?? current.appearance.density,
-    transparentBackground: appearance.transparentBackground ?? current.appearance.transparentBackground
+    transparentBackground: appearance.transparentBackground ?? current.appearance.transparentBackground,
+    backgroundColor:
+      appearance.backgroundColor === undefined ? current.appearance.backgroundColor : normalizeHexColor(appearance.backgroundColor),
+    backgroundOpacity:
+      appearance.backgroundOpacity === undefined
+        ? current.appearance.backgroundOpacity
+        : normalizeBackgroundOpacity(appearance.backgroundOpacity)
   }
 
   await writeSettings({
@@ -824,7 +1000,7 @@ ipcMain.handle('window:set-sidebar-collapsed', async (_event, collapsed: boolean
     }
     sidebarCollapsed = true
 
-    mainWindow.setMinimumSize(COLLAPSED_MIN_WIDTH, 200)
+    mainWindow.setMinimumSize(COLLAPSED_MIN_WIDTH, EXPANDED_MIN_HEIGHT)
     resizeWindowWithinVisibleArea(Math.max(collapsedSize.width, COLLAPSED_MIN_WIDTH), collapsedSize.height)
 
     return
@@ -835,8 +1011,9 @@ ipcMain.handle('window:set-sidebar-collapsed', async (_event, collapsed: boolean
     height: currentHeight
   }
   sidebarCollapsed = false
-  mainWindow.setMinimumSize(EXPANDED_MIN_WIDTH, 200)
+  mainWindow.setMinimumSize(EXPANDED_MIN_WIDTH, EXPANDED_MIN_HEIGHT)
   resizeWindowWithinVisibleArea(Math.max(expandedSize.width, EXPANDED_MIN_WIDTH), expandedSize.height)
+  schedulePersistWindowBounds(Math.max(expandedSize.width, EXPANDED_MIN_WIDTH), expandedSize.height)
 })
 
 ipcMain.handle('window:get-state', async () => {
