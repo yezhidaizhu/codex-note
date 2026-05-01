@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { FilePlus2, FolderOpen } from 'lucide-vue-next'
 import { storeToRefs } from 'pinia'
+import { onBeforeUnmount, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import ConfirmDialog from '@/components/confirm-dialog.vue'
 import EntityNameDialog from '@/components/notes/entity-name-dialog.vue'
@@ -35,20 +36,17 @@ const {
 
 const {
   contextMenu,
-  listActionsMenuOpen,
   pendingConfirm,
   nameDialogState,
-  isBatchSelecting,
   selectedPaths,
+  selection,
+  clearNoteSelection,
   handleShellContextMenu,
   handleShellClick,
-  toggleListActionsMenu,
-  requestNoteContextMenu,
+  requestNoteContextMenuForSelection,
   requestFolderContextMenu,
   confirmDeleteNotes,
   openCreateFolderDialog,
-  toggleBatchSelect,
-  toggleNoteSelection,
   confirmPendingAction,
   submitNameDialog,
   deleteNoteFromContextMenu,
@@ -63,6 +61,30 @@ const noteEditor = useNoteEditor(store)
 const { isResizing: isSidebarResizing, beginResize: beginSidebarResize } = usePanelResize(sidebarWidth, sidebarCollapsed, {
   minWidth: 220,
   maxWidth: 520,
+})
+
+function handleActivateNoteSelection(payload: { path: string; orderedPaths: string[]; modifiers: { shiftKey: boolean; metaKey: boolean; ctrlKey: boolean } }) {
+  return selection.handleNoteActivation(payload.path, payload.orderedPaths, payload.modifiers)
+}
+
+function handleWindowKeydown(event: KeyboardEvent) {
+  if (event.key !== 'Escape') return
+  clearNoteSelection()
+}
+
+function handleSidebarBlankPointerDown(event: MouseEvent) {
+  const target = event.target
+  if (!(target instanceof HTMLElement)) return
+  if (target.closest('[data-note-item="true"], [data-folder-item="true"], [data-note-list-shell="true"]')) return
+  clearNoteSelection()
+}
+
+onMounted(() => {
+  window.addEventListener('keydown', handleWindowKeydown)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', handleWindowKeydown)
 })
 </script>
 
@@ -83,6 +105,7 @@ const { isResizing: isSidebarResizing, beginResize: beginSidebarResize } = usePa
 
     <div class="flex min-h-0 flex-1 overflow-hidden">
       <NotesSidebar
+        @mousedown.capture="handleSidebarBlankPointerDown"
         :notes-dir="notesDir"
         :notes="notes"
         :folders="folders"
@@ -93,21 +116,17 @@ const { isResizing: isSidebarResizing, beginResize: beginSidebarResize } = usePa
         :sidebar-collapsed="sidebarCollapsed"
         :sidebar-width="sidebarWidth"
         :is-sidebar-resizing="isSidebarResizing"
-        :is-batch-selecting="isBatchSelecting"
         :selected-paths="selectedPaths"
         :pinned-note-paths="pinnedNotePaths"
         :expanded-folder-paths="expandedFolderPaths"
-        :list-actions-menu-open="listActionsMenuOpen"
         @update:query="store.query = $event"
         @createNote="noteEditor.createNoteAndFocus()"
         @openNote="store.openNote($event)"
-        @toggleListActionsMenu="toggleListActionsMenu"
-        @toggleBatchSelect="toggleBatchSelect"
-        @toggleNoteSelection="toggleNoteSelection($event)"
-        @confirmDeleteSelected="confirmDeleteNotes(selectedPaths)"
+        @activateNoteSelection="handleActivateNoteSelection($event)"
+        @requestDeleteSelected="confirmDeleteNotes($event)"
         @goSettings="router.push('/settings')"
         @beginResize="beginSidebarResize"
-        @requestNoteContextMenu="requestNoteContextMenu($event)"
+        @requestNoteContextMenu="requestNoteContextMenuForSelection($event)"
         @requestFolderContextMenu="requestFolderContextMenu($event)"
         @toggleFolderExpanded="store.toggleFolderExpanded($event)"
         @moveNoteToFolder="store.moveNote($event.path, $event.targetFolderPath)"
@@ -178,6 +197,7 @@ const { isResizing: isSidebarResizing, beginResize: beginSidebarResize } = usePa
       :x="contextMenu.x"
       :y="contextMenu.y"
       :target-type="contextMenu.targetType"
+      :note-selection-count="contextMenu.targetType === 'note' ? contextMenu.selectedPaths?.length ?? 1 : undefined"
       @delete-note="deleteNoteFromContextMenu"
       @rename-note="renameNoteFromContextMenu"
       @create-note-in-folder="createNoteInFolderFromContextMenu(noteEditor.createNoteAndFocus)"

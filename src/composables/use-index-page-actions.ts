@@ -1,5 +1,6 @@
 import { ref, watch } from 'vue'
 import type { Ref } from 'vue'
+import { useNoteSelection } from '@/composables/use-note-selection'
 import { buildDeleteFolderMessage, buildDeleteMessage, getListLabel } from '@/state/notes'
 import type { NotesStore } from '@/state/notes'
 
@@ -50,6 +51,7 @@ type NameDialogState =
 type NoteContextMenuState = {
   targetType: 'note' | 'folder'
   path: string
+  selectedPaths?: string[]
   x: number
   y: number
 } | null
@@ -84,8 +86,8 @@ export function useIndexPageActions(store: NotesStore) {
   const listActionsMenuOpen = ref(false)
   const pendingConfirm = ref<PendingConfirmState>(null)
   const nameDialogState = ref<NameDialogState>(null)
-  const isBatchSelecting = ref(false)
-  const selectedPaths = ref<string[]>([])
+  const selection = useNoteSelection()
+  const { selectedPaths } = selection
 
   function closeContextMenu() {
     contextMenu.value = null
@@ -115,7 +117,11 @@ export function useIndexPageActions(store: NotesStore) {
     closeContextMenu()
   }
 
-  function requestNoteContextMenu(payload: { path: string; x: number; y: number }) {
+  function clearNoteSelection() {
+    selection.clearSelection()
+  }
+
+  function requestNoteContextMenuForSelection(payload: { path: string; selectedPaths: string[]; x: number; y: number }) {
     contextMenu.value = { targetType: 'note', ...payload }
   }
 
@@ -187,17 +193,6 @@ export function useIndexPageActions(store: NotesStore) {
     closeTransientMenus()
   }
 
-  function toggleBatchSelect() {
-    isBatchSelecting.value = !isBatchSelecting.value
-    closeListActionsMenu()
-  }
-
-  function toggleNoteSelection(path: string) {
-    selectedPaths.value = selectedPaths.value.includes(path)
-      ? selectedPaths.value.filter((item) => item !== path)
-      : [...selectedPaths.value, path]
-  }
-
   async function confirmPendingAction() {
     const nextPending = pendingConfirm.value
     pendingConfirm.value = null
@@ -205,7 +200,7 @@ export function useIndexPageActions(store: NotesStore) {
 
     if (nextPending.action === 'deleteNotes') {
       await store.deleteNotesByPaths(nextPending.paths)
-      if (nextPending.paths.length > 1) isBatchSelecting.value = false
+      selection.removePaths(nextPending.paths)
       return
     }
 
@@ -231,9 +226,9 @@ export function useIndexPageActions(store: NotesStore) {
   }
 
   function deleteNoteFromContextMenu() {
-    const targetPath = contextMenu.value?.targetType === 'note' ? contextMenu.value.path : null
+    const targetPaths = contextMenu.value?.targetType === 'note' ? contextMenu.value.selectedPaths ?? [contextMenu.value.path] : null
     closeContextMenu()
-    if (targetPath) confirmDeleteNotes([targetPath])
+    if (targetPaths) confirmDeleteNotes(targetPaths)
   }
 
   function renameNoteFromContextMenu() {
@@ -266,10 +261,6 @@ export function useIndexPageActions(store: NotesStore) {
     if (targetPath) confirmDeleteFolder(targetPath)
   }
 
-  watch(isBatchSelecting, (enabled) => {
-    if (!enabled && selectedPaths.value.length > 0) selectedPaths.value = []
-  })
-
   bindWindowCloseWhenOpen(contextMenu, closeContextMenu)
   bindWindowCloseWhenOpen(listActionsMenuOpen, closeListActionsMenu)
 
@@ -278,20 +269,19 @@ export function useIndexPageActions(store: NotesStore) {
     listActionsMenuOpen,
     pendingConfirm,
     nameDialogState,
-    isBatchSelecting,
     selectedPaths,
+    selection,
+    clearNoteSelection,
     handleShellContextMenu,
     handleShellClick,
     toggleListActionsMenu,
-    requestNoteContextMenu,
+    requestNoteContextMenuForSelection,
     requestFolderContextMenu,
     confirmDeleteNotes,
     confirmDeleteFolder,
     openCreateFolderDialog,
     openRenameNoteDialog,
     openRenameFolderDialog,
-    toggleBatchSelect,
-    toggleNoteSelection,
     confirmPendingAction,
     submitNameDialog,
     deleteNoteFromContextMenu,

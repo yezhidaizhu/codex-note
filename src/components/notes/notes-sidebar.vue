@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Cog, FilePlus2, FolderPlus, MoreHorizontal, Search, Trash2 } from 'lucide-vue-next'
+import { Cog, FilePlus2, FolderPlus, Search } from 'lucide-vue-next'
 import Button from '@/components/ui/button.vue'
 import Input from '@/components/ui/input.vue'
 import NotesTreeList from '@/components/notes/notes-tree-list.vue'
@@ -16,24 +16,20 @@ defineProps<{
   sidebarCollapsed: boolean
   sidebarWidth: number
   isSidebarResizing: boolean
-  isBatchSelecting: boolean
   selectedPaths: string[]
   pinnedNotePaths: string[]
   expandedFolderPaths: string[]
-  listActionsMenuOpen: boolean
 }>()
 
 const emit = defineEmits<{
   (e: 'update:query', value: string): void
   (e: 'createNote'): void
   (e: 'openNote', path: string): void
-  (e: 'toggleListActionsMenu'): void
-  (e: 'toggleBatchSelect'): void
-  (e: 'toggleNoteSelection', path: string): void
-  (e: 'confirmDeleteSelected'): void
+  (e: 'activateNoteSelection', payload: { path: string; orderedPaths: string[]; modifiers: { shiftKey: boolean; metaKey: boolean; ctrlKey: boolean } }): boolean
+  (e: 'requestDeleteSelected', paths: string[]): void
   (e: 'goSettings'): void
   (e: 'beginResize', event: MouseEvent): void
-  (e: 'requestNoteContextMenu', payload: { path: string; x: number; y: number }): void
+  (e: 'requestNoteContextMenu', payload: { path: string; selectedPaths: string[]; x: number; y: number }): void
   (e: 'requestFolderContextMenu', payload: { path: string; x: number; y: number }): void
   (e: 'toggleFolderExpanded', path: string): void
   (e: 'moveNoteToFolder', payload: { path: string; targetFolderPath: string | null }): void
@@ -134,12 +130,12 @@ function onQueryKeydown(event: KeyboardEvent) {
         }"
       >
         <p class="text-ui-xs text-[var(--muted-foreground)]">笔记 {{ filteredNotes.length }}</p>
-        <div class="relative flex items-center gap-[var(--space-1)]">
+        <div class="flex items-center gap-[var(--space-1)]">
           <Button
             variant="ghost"
             size="icon"
             class="h-7 w-7 hover:bg-[var(--sidebar-hover)] hover:text-[var(--foreground)]"
-            :disabled="!notesDir || isBatchSelecting"
+            :disabled="!notesDir"
             aria-label="新建笔记"
             @click="emit('createNote')"
           >
@@ -150,37 +146,13 @@ function onQueryKeydown(event: KeyboardEvent) {
             variant="ghost"
             size="icon"
             class="h-7 w-7 hover:bg-[var(--sidebar-hover)] hover:text-[var(--foreground)]"
-            :disabled="!notesDir || isBatchSelecting"
+            :disabled="!notesDir"
             aria-label="新建目录"
             @click="emit('requestCreateFolder', null)"
           >
             <FolderPlus class="h-3.5 w-3.5" />
           </Button>
 
-          <Button
-            variant="ghost"
-            size="icon"
-            class="h-7 w-7 hover:bg-[var(--sidebar-hover)] hover:text-[var(--foreground)]"
-            :disabled="filteredNotes.length === 0 && !notesDir"
-            aria-label="更多操作"
-            @click.stop="emit('toggleListActionsMenu')"
-          >
-            <MoreHorizontal class="h-3.5 w-3.5" />
-          </Button>
-
-          <div
-            v-if="listActionsMenuOpen"
-            class="absolute right-0 top-[calc(100%+0.35rem)] z-30 min-w-[132px] rounded-[calc(var(--radius)-0.1rem)] border border-[color-mix(in_srgb,var(--border)_92%,transparent)] bg-[color-mix(in_srgb,var(--card)_96%,transparent)] p-1 shadow-[0_12px_28px_var(--popup-shadow)] backdrop-blur"
-            @click.stop
-          >
-            <button
-              type="button"
-              class="text-ui-sm flex w-full items-center rounded-[calc(var(--radius)-0.25rem)] px-2 py-1.5 text-left text-[var(--foreground)] hover:bg-[var(--interactive-hover)]"
-              @click="emit('toggleBatchSelect')"
-            >
-              {{ isBatchSelecting ? '退出批量操作' : '批量操作' }}
-            </button>
-          </div>
         </div>
       </div>
 
@@ -191,12 +163,11 @@ function onQueryKeydown(event: KeyboardEvent) {
         :query="query"
         :selected-path="selectedPath"
         :search-active-index="searchActiveIndex"
-        :is-batch-selecting="isBatchSelecting"
         :selected-paths="selectedPaths"
         :pinned-note-paths="pinnedNotePaths"
         :expanded-folder-paths="expandedFolderPaths"
         @open-note="emit('openNote', $event)"
-        @toggle-note-selection="emit('toggleNoteSelection', $event)"
+        @activate-note-selection="emit('activateNoteSelection', $event)"
         @request-note-context-menu="emit('requestNoteContextMenu', $event)"
         @request-folder-context-menu="emit('requestFolderContextMenu', $event)"
         @toggle-folder-expanded="emit('toggleFolderExpanded', $event)"
@@ -215,29 +186,6 @@ function onQueryKeydown(event: KeyboardEvent) {
           paddingBottom: 'var(--sidebar-footer-pad-y)',
         }"
       >
-        <div
-          v-if="isBatchSelecting"
-          class="flex items-center justify-between gap-[var(--space-2)] rounded-[calc(var(--radius)-0.1rem)] border border-[color-mix(in_srgb,var(--border)_88%,transparent)] bg-[color-mix(in_srgb,var(--card)_42%,transparent)] px-[var(--space-2)] py-[var(--space-2)]"
-          :style="{ marginBottom: 'var(--sidebar-footer-stack-gap)' }"
-        >
-          <p class="text-ui-xs text-[var(--muted-foreground)]">已选 {{ selectedPaths.length }}</p>
-          <div class="flex items-center gap-[var(--space-1)]">
-            <Button
-              variant="ghost"
-              size="sm"
-              class="text-ui-xs h-7 px-2 font-normal text-[var(--destructive)] hover:bg-[var(--interactive-hover)]"
-              :disabled="selectedPaths.length === 0"
-              @click="emit('confirmDeleteSelected')"
-            >
-              <Trash2 class="mr-1 h-3.5 w-3.5" />
-              删除
-            </Button>
-            <Button variant="secondary" size="sm" class="text-ui-xs h-7 px-2 font-normal" @click="emit('toggleBatchSelect')">
-              完成
-            </Button>
-          </div>
-        </div>
-
         <Button
           variant="ghost"
           size="sm"

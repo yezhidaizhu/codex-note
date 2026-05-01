@@ -29,8 +29,7 @@ const props = withDefaults(
 )
 
 const emit = defineEmits<{
-  (e: 'toggleChecked'): void
-  (e: 'open'): void
+  (e: 'activate', event: MouseEvent): void
   (e: 'contextMenu', event: MouseEvent): void
   (e: 'dragStart', event: DragEvent): void
   (e: 'dragEnd'): void
@@ -43,6 +42,10 @@ function rowClass() {
     return 'bg-[var(--tree-item-selected)] text-[var(--foreground)] hover:bg-[var(--tree-item-selected-hover)] hover:text-[var(--foreground)]'
   }
 
+  if (props.checked) {
+    return 'bg-[color-mix(in_srgb,var(--interactive-selected)_68%,transparent)] text-[var(--foreground)] hover:bg-[color-mix(in_srgb,var(--interactive-selected-hover)_72%,transparent)] hover:text-[var(--foreground)]'
+  }
+
   return 'bg-transparent text-[var(--foreground)] hover:bg-[var(--tree-item-hover)] hover:text-[var(--foreground)]'
 }
 
@@ -51,15 +54,11 @@ function iconClass() {
     return 'text-[var(--primary)]'
   }
 
-  return 'text-[var(--muted-foreground)]'
-}
-
-function handleClick() {
-  if (props.selectionMode) {
-    emit('toggleChecked')
-    return
+  if (props.checked) {
+    return 'text-[var(--foreground)]'
   }
-  emit('open')
+
+  return 'text-[var(--muted-foreground)]'
 }
 
 function handleKeydown(event: KeyboardEvent) {
@@ -124,7 +123,7 @@ const previewParts = computed(() => buildHighlightedParts(props.matchPreview ?? 
       )
     "
     :style="{ minHeight: 'var(--tree-item-min-height)' }"
-    @click="handleClick"
+    @click="emit('activate', $event)"
     @contextmenu.prevent="emit('contextMenu', $event)"
     @keydown="handleKeydown"
     :draggable="draggable"

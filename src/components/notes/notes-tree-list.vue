@@ -17,7 +17,6 @@ const props = defineProps<{
   query: string
   selectedPath: string | null
   searchActiveIndex: number
-  isBatchSelecting: boolean
   selectedPaths: string[]
   pinnedNotePaths: string[]
   expandedFolderPaths: string[]
@@ -26,9 +25,10 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'openNote', path: string): void
   (e: 'openSearchResultAt', index: number): void
-  (e: 'toggleNoteSelection', path: string): void
-  (e: 'requestNoteContextMenu', payload: { path: string; x: number; y: number }): void
+  (e: 'activateNoteSelection', payload: { path: string; orderedPaths: string[]; modifiers: { shiftKey: boolean; metaKey: boolean; ctrlKey: boolean } }): boolean
+  (e: 'requestNoteContextMenu', payload: { path: string; selectedPaths: string[]; x: number; y: number }): void
   (e: 'requestFolderContextMenu', payload: { path: string; x: number; y: number }): void
+  (e: 'requestDeleteSelected', paths: string[]): void
   (e: 'toggleFolderExpanded', path: string): void
   (e: 'moveNoteToFolder', payload: { path: string; targetFolderPath: string | null }): void
   (e: 'moveFolderToFolder', payload: { path: string; targetFolderPath: string | null }): void
@@ -40,6 +40,7 @@ const dropTargetFolderPath = ref<string | null>(null)
 const rootDropActive = ref(false)
 const searchItemElements = ref<HTMLElement[]>([])
 const listRootRef = ref<HTMLElement | null>(null)
+const draggedNotePaths = ref<string[]>([])
 
 const isSearching = computed(() => props.query.trim().length > 0)
 
@@ -131,12 +132,13 @@ function canDropToRoot() {
 }
 
 function onItemDragStart(type: 'note' | 'folder', path: string, event: DragEvent) {
-  if (isSearching.value || props.isBatchSelecting) {
+  if (isSearching.value) {
     event.preventDefault()
     return
   }
 
   draggingItem.value = { type, path }
+  draggedNotePaths.value = type === 'note' ? (props.selectedPaths.includes(path) ? [...props.selectedPaths] : [path]) : []
   dropTargetFolderPath.value = null
   rootDropActive.value = false
   if (event.dataTransfer) {
@@ -147,6 +149,7 @@ function onItemDragStart(type: 'note' | 'folder', path: string, event: DragEvent
 
 function onItemDragEnd() {
   draggingItem.value = null
+  draggedNotePaths.value = []
   dropTargetFolderPath.value = null
   rootDropActive.value = false
 }
@@ -162,7 +165,9 @@ function onRootDragOver(event: DragEvent) {
 function onRootDrop() {
   if (!draggingItem.value || !canDropToRoot()) return
   if (draggingItem.value.type === 'note') {
-    emit('moveNoteToFolder', { path: draggingItem.value.path, targetFolderPath: null })
+    for (const path of draggedNotePaths.value) {
+      emit('moveNoteToFolder', { path, targetFolderPath: null })
+    }
   } else {
     emit('moveFolderToFolder', { path: draggingItem.value.path, targetFolderPath: null })
   }
@@ -193,6 +198,40 @@ async function navigateVisibleNotes(currentPath: string, direction: 1 | -1) {
   const nextPath = paths[nextIndex]
   emit('openNote', nextPath)
   await focusNoteByPath(nextPath)
+}
+
+function activateNote(path: string, event: MouseEvent) {
+  const modifiers = {
+    shiftKey: event.shiftKey,
+    metaKey: event.metaKey,
+    ctrlKey: event.ctrlKey,
+  }
+
+  emit('activateNoteSelection', {
+    path,
+    orderedPaths: visibleNotePaths.value,
+    modifiers,
+  })
+
+  if (!modifiers.shiftKey && !modifiers.metaKey && !modifiers.ctrlKey) {
+    emit('openNote', path)
+  }
+}
+
+function requestNoteContext(path: string, event: MouseEvent) {
+  emit('requestNoteContextMenu', {
+    path,
+    selectedPaths: props.selectedPaths.includes(path) ? [...props.selectedPaths] : [path],
+    x: event.clientX,
+    y: event.clientY,
+  })
+}
+
+function handleListKeydown(event: KeyboardEvent) {
+  if ((event.key === 'Delete' || event.key === 'Backspace') && props.selectedPaths.length > 0) {
+    event.preventDefault()
+    emit('requestDeleteSelected', [...props.selectedPaths])
+  }
 }
 
 watch(
@@ -230,14 +269,17 @@ watch(
   <div
     ref="listRootRef"
     v-else
+    data-note-list-shell="true"
     :class="[
       'scrollbar-thin flex min-h-0 flex-1 flex-col overflow-y-auto rounded-[calc(var(--radius)-0.2rem)] px-[var(--tree-list-pad-x)] pb-[var(--tree-list-pad-bottom)] transition-colors duration-150',
       rootDropActive ? 'bg-[var(--tree-item-selected)]' : '',
     ]"
     :style="{ gap: 'var(--tree-list-gap)' }"
+    tabindex="-1"
     @dragover="onRootDragOver"
     @dragleave="rootDropActive = false"
     @drop.prevent="onRootDrop"
+    @keydown="handleListKeydown"
   >
     <template v-if="isSearching">
       <NoteListItem
@@ -251,16 +293,14 @@ watch(
         :date-label="formatCompactDate(note.updatedAt)"
         :selected="searchActiveIndex === index"
         :is-pinned="pinnedNotePaths.includes(note.path)"
-        :selection-mode="isBatchSelecting"
         :checked="selectedPaths.includes(note.path)"
-        @toggleChecked="emit('toggleNoteSelection', note.path)"
+        @activate="activateNote(note.path, $event)"
         @togglePinned="emit('togglePinnedNote', note.path)"
         @navigate="navigateVisibleNotes(note.path, $event)"
         @open="emit('openSearchResultAt', index)"
         @context-menu="
           (event) => {
-            if (isBatchSelecting) return
-            emit('requestNoteContextMenu', { path: note.path, x: event.clientX, y: event.clientY })
+            requestNoteContext(note.path, event)
           }
         "
       />
@@ -278,17 +318,14 @@ watch(
           :date-label="formatCompactDate(note.updatedAt)"
           :selected="selectedPath === note.path"
           :is-pinned="true"
-          :selection-mode="isBatchSelecting"
           :checked="selectedPaths.includes(note.path)"
-          :draggable="!isBatchSelecting"
+          :draggable="true"
+          @activate="activateNote(note.path, $event)"
           @togglePinned="emit('togglePinnedNote', note.path)"
-          @toggleChecked="emit('toggleNoteSelection', note.path)"
           @navigate="navigateVisibleNotes(note.path, $event)"
-          @open="emit('openNote', note.path)"
           @context-menu="
             (event) => {
-              if (isBatchSelecting) return
-              emit('requestNoteContextMenu', { path: note.path, x: event.clientX, y: event.clientY })
+              requestNoteContext(note.path, event)
             }
           "
           @drag-start="onItemDragStart('note', note.path, $event)"
@@ -304,14 +341,15 @@ watch(
         :folders-by-parent="foldersByParent"
         :notes-by-parent="notesByParent"
         :expanded-folder-paths="expandedFolderPaths"
+        :visible-note-paths="visibleNotePaths"
         :selected-path="selectedPath"
-        :is-batch-selecting="isBatchSelecting"
         :selected-paths="selectedPaths"
         :pinned-note-paths="pinnedNotePaths"
+        :dragged-note-paths="draggedNotePaths"
         :dragging-item="draggingItem"
         :drop-target-folder-path="dropTargetFolderPath"
         @open-note="emit('openNote', $event)"
-        @toggle-note-selection="emit('toggleNoteSelection', $event)"
+        @activate-note-selection="emit('activateNoteSelection', $event)"
         @request-note-context-menu="emit('requestNoteContextMenu', $event)"
         @request-folder-context-menu="emit('requestFolderContextMenu', $event)"
         @toggle-folder-expanded="emit('toggleFolderExpanded', $event)"
@@ -344,20 +382,17 @@ watch(
           :label="getListLabel(note)"
           :match-preview="note.matchPreview"
           :highlight-query="''"
-        :date-label="formatCompactDate(note.updatedAt)"
-        :selected="selectedPath === note.path"
-        :is-pinned="pinnedNotePaths.includes(note.path)"
-          :selection-mode="isBatchSelecting"
+          :date-label="formatCompactDate(note.updatedAt)"
+          :selected="selectedPath === note.path"
+          :is-pinned="pinnedNotePaths.includes(note.path)"
           :checked="selectedPaths.includes(note.path)"
-          :draggable="!isBatchSelecting"
+          :draggable="true"
+          @activate="activateNote(note.path, $event)"
           @togglePinned="emit('togglePinnedNote', note.path)"
-          @toggleChecked="emit('toggleNoteSelection', note.path)"
           @navigate="navigateVisibleNotes(note.path, $event)"
-          @open="emit('openNote', note.path)"
           @context-menu="
             (event) => {
-              if (isBatchSelecting) return
-              emit('requestNoteContextMenu', { path: note.path, x: event.clientX, y: event.clientY })
+              requestNoteContext(note.path, event)
             }
           "
           @drag-start="onItemDragStart('note', note.path, $event)"

@@ -5,6 +5,7 @@ defineProps<{
   x: number
   y: number
   targetType: 'note' | 'folder'
+  noteSelectionCount?: number
 }>()
 
 const emit = defineEmits<{
@@ -25,6 +26,7 @@ const emit = defineEmits<{
   >
     <template v-if="targetType === 'note'">
       <button
+        v-if="(noteSelectionCount ?? 1) === 1"
         type="button"
         class="text-ui-sm flex w-full items-center rounded-[calc(var(--radius)-0.25rem)] px-2 py-1.5 text-left text-[var(--foreground)] hover:bg-[var(--interactive-hover)]"
         @click="emit('renameNote')"
@@ -37,7 +39,7 @@ const emit = defineEmits<{
         @click="emit('deleteNote')"
       >
         <Trash2 class="mr-1.5 h-3.5 w-3.5" />
-        删除笔记
+        {{ (noteSelectionCount ?? 1) > 1 ? '删除所选笔记' : '删除笔记' }}
       </button>
     </template>
 
