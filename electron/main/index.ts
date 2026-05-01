@@ -335,6 +335,13 @@ function createTray(): void {
       click: () => restoreWindow()
     },
     {
+      label: '打开 DevTools',
+      click: () => {
+        restoreWindow()
+        mainWindow?.webContents.openDevTools({ mode: 'detach' })
+      }
+    },
+    {
       type: 'separator'
     },
     {
