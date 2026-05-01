@@ -143,7 +143,7 @@ const previewParts = computed(() => buildHighlightedParts(props.matchPreview ?? 
             <template v-for="(part, index) in labelParts" :key="`${part.text}-${index}`">
               <mark
                 v-if="part.highlighted"
-                class="rounded bg-[color-mix(in_srgb,var(--primary)_22%,transparent)] px-0.5 text-[var(--foreground)]"
+                class=" bg-yellow-300 px-0.5 text-gray-900"
               >
                 {{ part.text }}
               </mark>
@@ -154,7 +154,7 @@ const previewParts = computed(() => buildHighlightedParts(props.matchPreview ?? 
             <template v-for="(part, index) in previewParts" :key="`${part.text}-${index}`">
               <mark
                 v-if="part.highlighted"
-                class="rounded bg-[color-mix(in_srgb,var(--primary)_22%,transparent)] px-0.5 text-[var(--foreground)]"
+                class=" bg-yellow-300 px-0.5 text-gray-900"
               >
                 {{ part.text }}
               </mark>
