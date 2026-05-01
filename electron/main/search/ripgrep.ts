@@ -5,6 +5,8 @@ import type { NoteListItem } from '../notes'
 type RipgrepMatch = {
   data?: {
     path?: { text?: string }
+    lines?: { text?: string }
+    submatches?: Array<{ start: number; end: number }>
   }
 }
 
@@ -17,13 +19,23 @@ function resolveRipgrepPath(): string {
   return (require('@vscode/ripgrep') as { rgPath: string }).rgPath
 }
 
+function buildMatchPreview(line: string, start: number, end: number): string {
+  const contextRadius = 36
+  const left = Math.max(0, start - contextRadius)
+  const right = Math.min(line.length, end + contextRadius)
+  const snippet = line.slice(left, right).trim()
+  const prefix = left > 0 ? '…' : ''
+  const suffix = right < line.length ? '…' : ''
+  return `${prefix}${snippet}${suffix}`
+}
+
 export async function searchNotesWithRipgrep(notesDir: string, notes: NoteListItem[], query: string): Promise<NoteListItem[]> {
   const keyword = query.trim()
   if (!keyword) {
     return notes
   }
 
-  const matchedPaths = new Set<string>()
+  const matchedPreviews = new Map<string, string>()
 
   await new Promise<void>((resolvePromise, rejectPromise) => {
     const child = spawn(resolveRipgrepPath(), ['--json', '--ignore-case', '--glob', '*.md', keyword, notesDir], {
@@ -47,7 +59,15 @@ export async function searchNotesWithRipgrep(notesDir: string, notes: NoteListIt
           if (event.type !== 'match') continue
           const pathText = event.data?.path?.text
           if (!pathText) continue
-          matchedPaths.add(normalizeRelativePath(pathText.slice(notesDir.length).replace(/^[/\\]/, '')))
+          const relativePath = normalizeRelativePath(pathText.slice(notesDir.length).replace(/^[/\\]/, ''))
+          if (!matchedPreviews.has(relativePath)) {
+            const lineText = event.data?.lines?.text?.replace(/\r?\n$/, '') ?? ''
+            const firstSubmatch = event.data?.submatches?.[0]
+            matchedPreviews.set(
+              relativePath,
+              firstSubmatch ? buildMatchPreview(lineText, firstSubmatch.start, firstSubmatch.end) : lineText.trim(),
+            )
+          }
         } catch {
           // Ignore malformed JSON lines from ripgrep output.
         }
@@ -69,7 +89,15 @@ export async function searchNotesWithRipgrep(notesDir: string, notes: NoteListIt
           if (event.type === 'match') {
             const pathText = event.data?.path?.text
             if (pathText) {
-              matchedPaths.add(normalizeRelativePath(pathText.slice(notesDir.length).replace(/^[/\\]/, '')))
+              const relativePath = normalizeRelativePath(pathText.slice(notesDir.length).replace(/^[/\\]/, ''))
+              if (!matchedPreviews.has(relativePath)) {
+                const lineText = event.data?.lines?.text?.replace(/\r?\n$/, '') ?? ''
+                const firstSubmatch = event.data?.submatches?.[0]
+                matchedPreviews.set(
+                  relativePath,
+                  firstSubmatch ? buildMatchPreview(lineText, firstSubmatch.start, firstSubmatch.end) : lineText.trim(),
+                )
+              }
             }
           }
         } catch {
@@ -86,5 +114,10 @@ export async function searchNotesWithRipgrep(notesDir: string, notes: NoteListIt
     })
   })
 
-  return notes.filter((note) => matchedPaths.has(note.path))
+  return notes
+    .filter((note) => matchedPreviews.has(note.path))
+    .map((note) => ({
+      ...note,
+      matchPreview: matchedPreviews.get(note.path) ?? null
+    }))
 }

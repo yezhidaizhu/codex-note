@@ -20,6 +20,7 @@ export type NoteListItem = {
   title: string
   updatedAt: string
   size: number
+  matchPreview?: string | null
 }
 
 export type FolderListItem = {
