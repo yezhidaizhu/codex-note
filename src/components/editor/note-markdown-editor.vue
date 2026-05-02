@@ -1,10 +1,7 @@
 <template>
-  <MilkdownProvider>
-    <NoteMarkdownEditorSurface />
-  </MilkdownProvider>
+  <NoteProsemirrorEditorSurface />
 </template>
 
 <script setup lang="ts">
-import { MilkdownProvider } from '@milkdown/vue'
-import NoteMarkdownEditorSurface from './note-markdown-editor-surface.vue'
+import NoteProsemirrorEditorSurface from './note-prosemirror-editor-surface.vue'
 </script>

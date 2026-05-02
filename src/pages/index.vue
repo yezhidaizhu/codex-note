@@ -168,7 +168,7 @@ onBeforeUnmount(() => {
             <p class="text-ui-xs uppercase tracking-[0.26em] text-[var(--muted-foreground)]">Ready</p>
             <h3 class="mt-[var(--space-3)] text-2xl font-semibold tracking-tight">选一篇笔记，或者新建一篇</h3>
             <p class="text-ui-md mt-[var(--space-4)] leading-7 text-[var(--muted-foreground)]">
-              左侧读取所选目录里的 `.md` 文件，右侧直接编辑原始 Markdown 文本。
+              左侧读取所选目录里的 `.md` 文件，右侧会以结构化方式编辑并保存回 Markdown。
             </p>
             <Button class="mt-[var(--space-5)] gap-[var(--space-2)]" @click="noteEditor.createNoteAndFocus()">
               <FilePlus2 class="h-4 w-4" />

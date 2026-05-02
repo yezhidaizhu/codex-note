@@ -165,7 +165,7 @@ export function sanitizeEditorEnabledFeatures(
     }
   }
 
-  return deduped.size > 0 ? [...deduped] : [...defaultSettings.editor.enabledFeatures]
+  return [...deduped]
 }
 
 export function sanitizeEditorImageDirectory(value: string | null | undefined): string {

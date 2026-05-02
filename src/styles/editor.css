@@ -1,125 +1,138 @@
-@import "@milkdown/prose/view/style/prosemirror.css";
-
-.ProseMirror {
+.pm-host {
   min-height: 100%;
-  outline: none;
-  color: var(--foreground);
-  font-size: 15px;
-  line-height: 1.7;
-  white-space: pre-wrap;
 }
 
-.ProseMirror.milkdown-placeholder-root {
-  position: relative;
-}
-
-.ProseMirror .milkdown-placeholder-paragraph {
-  position: relative;
-}
-
-.ProseMirror .milkdown-placeholder-paragraph::before {
-  content: attr(data-placeholder);
+.pm-placeholder {
   position: absolute;
-  inset-inline-start: 0;
-  top: 0;
+  inset-inline-start: var(--editor-pad-x);
+  top: 0.25rem;
   color: var(--muted-foreground);
   pointer-events: none;
   user-select: none;
   white-space: nowrap;
 }
 
-.ProseMirror > * {
+.pm-editor {
+  min-height: 100%;
+  color: var(--foreground);
+  font-size: 15px;
+  font-family: Monaco, Menlo, Ubuntu Mono, monospace;
+  line-height: 1.58;
+  white-space: pre-wrap;
+}
+
+.pm-editor:focus {
+  outline: none;
+}
+
+.pm-editor > * {
   margin: 0;
 }
 
-.ProseMirror > * + * {
-  margin-top: 0.7rem;
-}
-
-.ProseMirror p {
-  margin: 0;
-}
-
-.ProseMirror ul,
-.ProseMirror ol {
+.pm-editor ul,
+.pm-editor ol {
   margin: 0;
   padding-left: 1.5rem;
 }
 
-.ProseMirror ul {
+.pm-editor ul {
   list-style: disc;
 }
 
-.ProseMirror ol {
+.pm-editor ol {
   list-style: decimal;
 }
 
-.ProseMirror li {
-  margin: 0;
-  line-height: 1.45;
-}
-
-.ProseMirror li + li {
-  margin-top: 0.08rem;
-}
-
-.ProseMirror li > p {
-  margin: 0;
-  line-height: 1.45;
-}
-
-.ProseMirror li > ul,
-.ProseMirror li > ol {
-  margin-top: 0.35rem;
-}
-
-.ProseMirror h1,
-.ProseMirror h2,
-.ProseMirror h3 {
+.pm-editor h1,
+.pm-editor h2,
+.pm-editor h3 {
   font-weight: 650;
   letter-spacing: -0.02em;
 }
 
-.ProseMirror h1 {
+.pm-editor h1 {
   font-size: 1.45rem;
 }
 
-.ProseMirror h2 {
+.pm-editor h2 {
   font-size: 1.2rem;
 }
 
-.ProseMirror h3 {
+.pm-editor h3 {
   font-size: 1.02rem;
 }
 
-.ProseMirror blockquote {
+.pm-editor blockquote {
   border-left: 3px solid color-mix(in srgb, var(--primary) 60%, transparent);
   padding-left: 0.85rem;
   color: color-mix(in srgb, var(--foreground) 78%, var(--muted-foreground));
 }
 
-.ProseMirror pre {
+.pm-editor pre {
   overflow-x: auto;
   border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
   border-radius: calc(var(--radius) - 0.1rem);
   background: color-mix(in srgb, var(--card) 82%, transparent);
   padding: 0.85rem 1rem;
-  line-height: 1.6;
+  line-height: 1.52;
 }
 
-.ProseMirror code {
+.pm-editor code {
   font-family: "JetBrains Mono", "SFMono-Regular", "SF Mono", Consolas, monospace;
   font-size: 0.92em;
 }
 
-.ProseMirror a {
+.pm-editor a {
   color: var(--primary);
   text-decoration: underline;
   text-underline-offset: 3px;
 }
 
-.ProseMirror img {
+.pm-editor img,
+.pm-editor-image {
   display: block;
   max-width: 100%;
   border-radius: calc(var(--radius) - 0.1rem);
+}
+
+.pm-editor ul[data-type='taskList'] {
+  list-style: none;
+  padding-left: 0.4rem;
+}
+
+.pm-editor ul[data-type='taskList'] li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+}
+
+.pm-editor ul[data-type='taskList'] li > label {
+  margin-top: 0.2rem;
+}
+
+.pm-editor ul[data-type='taskList'] li > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.pm-editor .ProseMirror {
+  min-height: 100%;
+  outline: none;
+}
+
+.pm-editor .ProseMirror-focused {
+  outline: none;
+}
+
+.pm-editor .ProseMirror > * {
+  margin: 0;
+}
+
+.pm-editor .ProseMirror > * + * {
+  margin-top: 0;
+}
+
+.pm-editor .ProseMirror > :is(blockquote, pre, ul, ol, h1, h2, h3) + *,
+.pm-editor .ProseMirror > * + :is(blockquote, pre, ul, ol, h1, h2, h3) {
+  margin-top: 0.35rem;
 }

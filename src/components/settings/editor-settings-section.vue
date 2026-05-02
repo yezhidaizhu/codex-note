@@ -37,7 +37,7 @@ const emit = defineEmits<{
     </div>
 
     <div class="rounded-[calc(var(--radius)-0.05rem)] border border-[color-mix(in_srgb,var(--border)_78%,transparent)] bg-[color-mix(in_srgb,var(--card)_18%,transparent)] px-[calc(var(--settings-panel-pad)-0.1rem)] py-[calc(var(--settings-panel-pad)-0.28rem)]">
-      <div class="grid gap-[var(--space-3)] md:grid-cols-2">
+      <div class="grid gap-[var(--space-3)] md:grid-cols-3">
         <label
           v-for="feature in editorFeatureOptions"
           :key="feature.key"
