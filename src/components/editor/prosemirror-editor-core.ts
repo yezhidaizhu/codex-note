@@ -272,6 +272,16 @@ export function serializeMarkdown(doc: ProseMirrorNode) {
   return prosemirrorMarkdownSerializer.serialize(doc).replace(/\r/g, '')
 }
 
+export function isDocumentVisuallyEmpty(doc: ProseMirrorNode) {
+  if (doc.childCount === 0) return true
+  if (doc.childCount > 1) return false
+
+  const firstChild = doc.firstChild
+  if (!firstChild) return true
+  if (firstChild.type.name !== 'paragraph') return false
+  return firstChild.childCount === 0 || firstChild.textContent.trim().length === 0
+}
+
 function markActive(state: EditorState, markType: MarkType) {
   const { from, $from, to, empty } = state.selection
 
@@ -504,7 +514,10 @@ export function createEditorState({
 
           event.preventDefault()
           const slice = pasteMarkdownSlice(text, enabledFeatures)
-          view.dispatch(view.state.tr.replaceSelection(slice).scrollIntoView())
+          const tr = isDocumentVisuallyEmpty(view.state.doc)
+            ? view.state.tr.replaceWith(0, view.state.doc.content.size, slice.content)
+            : view.state.tr.replaceSelection(slice)
+          view.dispatch(tr.scrollIntoView())
           return true
         },
       },
@@ -561,6 +574,15 @@ export function focusEditorView(view: EditorView, placeAtEnd = false) {
   const end = view.state.doc.content.size
   const tr = view.state.tr.setSelection(TextSelection.create(view.state.doc, end))
   view.dispatch(tr)
+}
+
+export function restoreEditorViewSelection(view: EditorView, anchor: number, head: number = anchor) {
+  const maxPos = view.state.doc.content.size
+  const nextAnchor = Math.max(0, Math.min(anchor, maxPos))
+  const nextHead = Math.max(0, Math.min(head, maxPos))
+  const tr = view.state.tr.setSelection(TextSelection.create(view.state.doc, nextAnchor, nextHead))
+  view.dispatch(tr)
+  view.focus()
 }
 
 export function runToolbarCommand(view: EditorView, command: Command) {

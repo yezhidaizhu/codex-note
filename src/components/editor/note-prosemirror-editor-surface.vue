@@ -4,6 +4,8 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import {
   createEditorView,
   focusEditorView,
+  isDocumentVisuallyEmpty,
+  restoreEditorViewSelection,
   serializeMarkdown,
   setEditorViewMarkdown,
   prosemirrorSchema,
@@ -27,10 +29,7 @@ let isApplyingExternalContent = false
 let lastAppliedMarkdown = activeNote.value?.content ?? ''
 let lastHandledFocusRequestId = 0
 
-const editorKey = computed(() => {
-  const notePath = activeNote.value?.path ?? 'draft'
-  return `${notePath}::${[...settings.value.enabledFeatures].sort().join(',')}`
-})
+const editorConfigKey = computed(() => [...settings.value.enabledFeatures].sort().join(','))
 
 async function syncRenderedImageSources() {
   const shell = shellRef.value
@@ -84,24 +83,34 @@ function currentMarkdown() {
   return serializeMarkdown(view.state.doc)
 }
 
-function isDocumentVisuallyEmpty() {
-  if (!view) return true
-  const { doc } = view.state
-  if (doc.childCount === 0) return true
-  if (doc.childCount > 1) return false
-
-  const firstChild = doc.firstChild
-  if (!firstChild) return true
-  if (firstChild.type.name !== 'paragraph') return false
-  return firstChild.childCount === 0 || firstChild.textContent.trim().length === 0
+function updatePlaceholderState() {
+  showPlaceholder.value = !view || isDocumentVisuallyEmpty(view.state.doc)
 }
 
-function updatePlaceholderState() {
-  showPlaceholder.value = isDocumentVisuallyEmpty()
+function captureEditorSelectionSnapshot() {
+  if (!view) {
+    return {
+      anchor: 0,
+      focused: false,
+      head: 0,
+    }
+  }
+
+  const activeElement = document.activeElement
+  const root = hostRef.value
+  const focused = Boolean(root && activeElement && root.contains(activeElement))
+  const { from, to } = view.state.selection
+
+  return {
+    anchor: from,
+    focused,
+    head: to,
+  }
 }
 
 function rebuildEditorView() {
   if (!hostRef.value) return
+  const previousSelection = captureEditorSelectionSnapshot()
 
   view?.destroy()
   view = createEditorView({
@@ -121,15 +130,17 @@ function rebuildEditorView() {
       const nextView = view
       if (!nextView) return
 
+      const emptyDoc = isDocumentVisuallyEmpty(nextView.state.doc)
       let tr = nextView.state.tr
       for (const image of images) {
-        tr = tr.replaceSelectionWith(
-          prosemirrorSchema.nodes.image.create({
-            alt: image.alt,
-            src: image.src,
-            title: null,
-          }),
-        )
+        const imageNode = prosemirrorSchema.nodes.image.create({
+          alt: image.alt,
+          src: image.src,
+          title: null,
+        })
+        tr = emptyDoc
+          ? tr.replaceWith(0, tr.doc.content.size, imageNode)
+          : tr.replaceSelectionWith(imageNode)
       }
       nextView.dispatch(tr.scrollIntoView())
       lastAppliedMarkdown = currentMarkdown()
@@ -142,7 +153,12 @@ function rebuildEditorView() {
 
   lastAppliedMarkdown = currentMarkdown()
   updatePlaceholderState()
-  void nextTick(() => syncRenderedImageSources())
+  void nextTick(async () => {
+    if (view && previousSelection.focused) {
+      restoreEditorViewSelection(view, previousSelection.anchor, previousSelection.head)
+    }
+    await syncRenderedImageSources()
+  })
 }
 
 function setEditorMarkdown(markdown: string) {
@@ -184,7 +200,7 @@ onBeforeUnmount(() => {
 })
 
 watch(
-  () => editorKey.value,
+  () => editorConfigKey.value,
   () => {
     rebuildEditorView()
   },

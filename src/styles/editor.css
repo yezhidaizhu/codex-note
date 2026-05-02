@@ -7,6 +7,8 @@
   inset-inline-start: var(--editor-pad-x);
   top: 0.25rem;
   color: var(--muted-foreground);
+  font-size: var(--text-sm);
+  font-family: Monaco, Menlo, Ubuntu Mono, monospace;
   pointer-events: none;
   user-select: none;
   white-space: nowrap;
@@ -15,7 +17,7 @@
 .pm-editor {
   min-height: 100%;
   color: var(--foreground);
-  font-size: 15px;
+  font-size: var(--text-sm);
   font-family: Monaco, Menlo, Ubuntu Mono, monospace;
   line-height: 1.58;
   white-space: pre-wrap;
