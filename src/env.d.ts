@@ -3,6 +3,7 @@
 import type {
   AppSettings,
   AppearanceSettings,
+  CleanupUnusedImagesResult,
   CopyTextResult,
   EditorSettings,
   MoveFolderResult,
@@ -34,6 +35,7 @@ declare global {
       saveImageAsset: (payload: { notePath: string; directory: string; fileName: string; mimeType: string; bytes: Uint8Array }) => Promise<{ relativePath: string }>
       resolveNoteAssetPath: (notePath: string, assetPath: string) => Promise<{ path: string; fileUrl: string }>
       resolveImageDirectoryPath: (payload: { notePath: string | null; directory: string }) => Promise<{ path: string }>
+      cleanupUnusedImages: (directory: string) => Promise<CleanupUnusedImagesResult>
       deleteNote: (path: string) => Promise<NoteTreeResult>
       createFolder: (parentPath: string | null, name: string) => Promise<NoteTreeResult>
       deleteFolder: (path: string) => Promise<NoteTreeResult>

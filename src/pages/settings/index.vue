@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { CircleArrowLeft } from 'lucide-vue-next'
 import { storeToRefs } from 'pinia'
 import { useRouter } from 'vue-router'
 import Button from '@/components/ui/button.vue'
+import ConfirmDialog from '@/components/confirm-dialog.vue'
 import EntityNameDialog from '@/components/notes/entity-name-dialog.vue'
 import EditorSettingsSection from '@/components/settings/editor-settings-section.vue'
 import AppearanceSettingsSection from '@/components/settings/appearance-settings-section.vue'
@@ -32,10 +33,12 @@ const sections = [
   { key: 'general', label: '通用' },
   { key: 'editor', label: '编辑器' },
   { key: 'appearance', label: '外观' },
-  { key: 'automation', label: '自动化' },
+  { key: 'automation', label: '快速创建' },
 ] as const
 const activeSectionKey = ref<(typeof sections)[number]['key']>('general')
 const editorImageDirectoryDialogOpen = ref(false)
+const cleanupUnusedImagesDialogOpen = ref(false)
+const resolvedImageDirectoryPath = ref<string | null>(null)
 const settingsSidebarCollapsed = computed(() => false)
 const { isResizing: isSettingsSidebarResizing, beginResize: beginSettingsSidebarResize } = usePanelResize(
   sidebarWidth,
@@ -136,6 +139,32 @@ function confirmEditorImageDirectory(imageDirectory: string) {
 function openEditorImageDirectory() {
   void notesStore.openImageDirectory(selectedPath.value, editorSettings.value.imageDirectory)
 }
+
+function openCleanupUnusedImagesDialog() {
+  cleanupUnusedImagesDialogOpen.value = true
+}
+
+function confirmCleanupUnusedImages() {
+  cleanupUnusedImagesDialogOpen.value = false
+  void notesStore.cleanupUnusedImages(editorSettings.value.imageDirectory)
+}
+
+watch(
+  () => [notesDir.value, selectedPath.value, editorSettings.value.imageDirectory] as const,
+  async () => {
+    if (!notesDir.value) {
+      resolvedImageDirectoryPath.value = null
+      return
+    }
+
+    try {
+      resolvedImageDirectoryPath.value = await notesStore.resolveImageDirectoryPath(selectedPath.value, editorSettings.value.imageDirectory)
+    } catch {
+      resolvedImageDirectoryPath.value = null
+    }
+  },
+  { immediate: true },
+)
 </script>
 
 <template>
@@ -223,10 +252,10 @@ function openEditorImageDirectory() {
           </template>
 
           <template v-else-if="activeSection.key === 'automation'">
-            <p class="text-ui-xs uppercase tracking-[0.24em] text-[var(--muted-foreground)]">Automation</p>
-            <h1 class="mt-[var(--space-2)] text-3xl font-semibold tracking-tight">自动化设置</h1>
+            <p class="text-ui-xs uppercase tracking-[0.24em] text-[var(--muted-foreground)]">Quick Create</p>
+            <h1 class="mt-[var(--space-2)] text-3xl font-semibold tracking-tight">快速创建设置</h1>
             <p class="text-ui-md mt-[var(--space-3)] max-w-2xl leading-7 text-[var(--muted-foreground)]">
-              管理 Alt + A 这类快速触发动作，以及快速创建时的默认行为与命名规则。
+              配置快捷唤起后的默认行为。
             </p>
           </template>
 
@@ -253,8 +282,11 @@ function openEditorImageDirectory() {
         <EditorSettingsSection
           v-else-if="activeSection.key === 'editor'"
           :editor-settings="editorSettings"
+          :notes-dir="notesDir"
+          :resolved-image-directory-path="resolvedImageDirectoryPath"
           @toggle-feature="toggleEditorFeature"
           @open-image-directory="openEditorImageDirectory"
+          @cleanup-unused-images="openCleanupUnusedImagesDialog"
           @request-edit-image-directory="openEditorImageDirectoryDialog"
         />
 
@@ -294,6 +326,15 @@ function openEditorImageDirectory() {
       entity-type="folder"
       @cancel="editorImageDirectoryDialogOpen = false"
       @confirm="confirmEditorImageDirectory"
+    />
+
+    <ConfirmDialog
+      v-if="cleanupUnusedImagesDialogOpen"
+      title="清理未引用图片"
+      message="会检查笔记引用，并清理当前图片目录里未被任何笔记引用的图片。这个操作不可撤销。"
+      confirm-label="开始清理"
+      @cancel="cleanupUnusedImagesDialogOpen = false"
+      @confirm="confirmCleanupUnusedImages"
     />
   </div>
 </template>

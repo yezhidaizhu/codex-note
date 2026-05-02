@@ -48,6 +48,11 @@ export type CopyTextResult = {
   error?: string
 }
 
+export type CleanupUnusedImagesResult = {
+  deletedCount: number
+  deletedPaths: string[]
+}
+
 export type NoteListItem = {
   path: string
   name: string

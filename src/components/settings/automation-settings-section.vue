@@ -95,11 +95,11 @@ function onQuickCreateTargetPathKeydown(event: KeyboardEvent) {
             >
               <Keyboard class="h-3.5 w-3.5" />
             </span>
-            <p class="text-[15px] font-semibold tracking-[0.01em] text-[var(--foreground)]">快速操作</p>
+            <p class="text-[15px] font-semibold tracking-[0.01em] text-[var(--foreground)]">快速创建</p>
           </div>
         </div>
         <p class="text-ui-sm mt-[var(--space-2)] max-w-2xl leading-6 text-[var(--muted-foreground)]">
-          配置 Alt + A 的默认行为、快速创建目录，以及快速创建时的命名方式。
+          配置快捷唤起后的默认行为。
         </p>
       </div>
     </div>
@@ -109,9 +109,9 @@ function onQuickCreateTargetPathKeydown(event: KeyboardEvent) {
         <div class="min-w-0">
           <div class="flex items-center gap-[var(--space-2)] text-[var(--foreground)]">
             <Keyboard class="h-4 w-4 text-[var(--muted-foreground)]" />
-            <p class="text-ui-sm font-medium">快捷动作</p>
+            <p class="text-ui-sm font-medium">默认动作</p>
           </div>
-          <p class="text-ui-xs mt-1 text-[var(--muted-foreground)]">按 Alt + A 时执行“新建”或“打开指定文件”。</p>
+          <p class="text-ui-xs mt-1 text-[var(--muted-foreground)]">快捷唤起后执行“新建”或“打开”。</p>
         </div>
         <div class="min-w-0">
           <div class="flex w-full lg:justify-end">
@@ -172,7 +172,7 @@ function onQuickCreateTargetPathKeydown(event: KeyboardEvent) {
             <Sparkles class="h-4 w-4 text-[var(--muted-foreground)]" />
             <p class="text-ui-sm font-medium">命名规则</p>
           </div>
-          <p class="text-ui-xs mt-1 text-[var(--muted-foreground)]">控制 Alt + A 快速创建笔记时，首次保存的默认文件名来源。</p>
+          <p class="text-ui-xs mt-1 text-[var(--muted-foreground)]">控制新建笔记时的默认文件名来源。</p>
         </div>
         <div class="min-w-0">
           <div class="flex w-full lg:justify-end">
@@ -233,7 +233,7 @@ function onQuickCreateTargetPathKeydown(event: KeyboardEvent) {
             <Clipboard class="h-4 w-4 text-[var(--muted-foreground)]" />
             <p class="text-ui-sm font-medium">写入剪贴板内容</p>
           </div>
-          <p class="text-ui-xs mt-1 text-[var(--muted-foreground)]">开启后，Alt + A 会把当前复制的文本带进草稿里。</p>
+          <p class="text-ui-xs mt-1 text-[var(--muted-foreground)]">开启后，会把当前剪贴板文本带进草稿里。</p>
         </div>
         <div class="min-w-0">
           <div class="flex w-full lg:justify-end">

@@ -774,6 +774,11 @@ ipcMain.handle('notes:resolve-image-directory-path', async (_event, payload: { n
   return notesService.ensureImageDirectory(notesDir, payload.notePath, payload.directory)
 })
 
+ipcMain.handle('notes:cleanup-unused-images', async (_event, directory: string) => {
+  const notesDir = await notesService.getNotesDirOrThrow()
+  return notesService.cleanupUnusedImages(notesDir, directory)
+})
+
 ipcMain.handle('clipboard:write-text', async (_event, value: string) => {
   try {
     clipboard.writeText(value)

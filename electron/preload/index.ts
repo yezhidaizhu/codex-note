@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { AppearanceSettings, EditorSettings, NoteTreeResult, QuickCreateSettings } from '@/lib/types'
+import type { AppearanceSettings, CleanupUnusedImagesResult, EditorSettings, NoteTreeResult, QuickCreateSettings } from '@/lib/types'
 
 const api = {
   getSettings: () => ipcRenderer.invoke('settings:get'),
@@ -36,6 +36,8 @@ const api = {
     ipcRenderer.invoke('notes:resolve-note-asset-path', notePath, assetPath) as Promise<{ path: string; fileUrl: string }>,
   resolveImageDirectoryPath: (payload: { notePath: string | null; directory: string }) =>
     ipcRenderer.invoke('notes:resolve-image-directory-path', payload) as Promise<{ path: string }>,
+  cleanupUnusedImages: (directory: string) =>
+    ipcRenderer.invoke('notes:cleanup-unused-images', directory) as Promise<CleanupUnusedImagesResult>,
   deleteNote: (path: string) => ipcRenderer.invoke('notes:delete', path),
   createFolder: (parentPath: string | null, name: string) => ipcRenderer.invoke('notes:create-folder', parentPath, name),
   deleteFolder: (path: string) => ipcRenderer.invoke('notes:delete-folder', path),

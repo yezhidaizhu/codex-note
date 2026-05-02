@@ -78,6 +78,11 @@ type SaveImageAssetPayload = {
   bytes: Uint8Array
 }
 
+type CleanupUnusedImagesResult = {
+  deletedCount: number
+  deletedPaths: string[]
+}
+
 const NOTE_TITLE_MAX_LENGTH = 36
 
 export function createNotesService(options: NotesServiceOptions) {
@@ -233,6 +238,31 @@ export function createNotesService(options: NotesServiceOptions) {
       default:
         return '.png'
     }
+  }
+
+  function globalImageDirectoryPath(notesDir: string, directoryValue: string): { relativePath: string; absolutePath: string } {
+    const imageDirectory = normalizeRelativePath(directoryValue)
+    if (!imageDirectory) {
+      throw new Error('图片目录不能为空。')
+    }
+
+    return {
+      relativePath: imageDirectory,
+      absolutePath: resolveInNotesDir(notesDir, imageDirectory),
+    }
+  }
+
+  function extractMarkdownImagePaths(content: string): string[] {
+    const matches = content.matchAll(/!\[[^\]]*]\((?<path>[^)\s]+)(?:\s+"[^"]*")?\)/g)
+    const imagePaths: string[] = []
+
+    for (const match of matches) {
+      const rawPath = match.groups?.path?.trim()
+      if (!rawPath || /^(data:|blob:|https?:|file:|note-asset:)/i.test(rawPath)) continue
+      imagePaths.push(rawPath.replace(/^<|>$/g, ''))
+    }
+
+    return imagePaths
   }
 
   function removeFolderBranch(folderPath: string, options: { includeSelf?: boolean } = {}): void {
@@ -792,14 +822,9 @@ export function createNotesService(options: NotesServiceOptions) {
       throw new Error('笔记路径不能为空。')
     }
 
-    const imageDirectory = normalizeRelativePath(payload.directory)
-    if (!imageDirectory) {
-      throw new Error('图片目录不能为空。')
-    }
-
     const noteParent = parentFromPath(notePath)
     const noteParentAbsolute = resolveInNotesDir(notesDir, noteParent)
-    const assetDirAbsolute = resolveInNotesDir(notesDir, noteParent ? `${noteParent}/${imageDirectory}` : imageDirectory)
+    const { relativePath: imageDirectory, absolutePath: assetDirAbsolute } = globalImageDirectoryPath(notesDir, payload.directory)
     await ensureDir(assetDirAbsolute)
 
     const rawStem = payload.fileName
@@ -827,7 +852,7 @@ export function createNotesService(options: NotesServiceOptions) {
 
     const relativeAssetPath = relative(noteParentAbsolute, absolutePath).replace(/\\/g, '/')
     return {
-      relativePath: relativeAssetPath.startsWith('.') ? relativeAssetPath : `./${relativeAssetPath}`
+      relativePath: noteParent ? relativeAssetPath : `/${imageDirectory}/${candidateName}`
     }
   }
 
@@ -843,7 +868,9 @@ export function createNotesService(options: NotesServiceOptions) {
     }
 
     const noteParentAbsolute = resolveInNotesDir(notesDir, parentFromPath(notePath))
-    const absolutePath = resolve(noteParentAbsolute, assetPath)
+    const absolutePath = assetPath.startsWith('/')
+      ? resolveInNotesDir(notesDir, assetPath)
+      : resolve(noteParentAbsolute, assetPath)
     const rootPath = resolve(notesDir)
     const relativeToRoot = relative(rootPath, absolutePath)
 
@@ -855,16 +882,66 @@ export function createNotesService(options: NotesServiceOptions) {
   }
 
   async function ensureImageDirectory(notesDir: string, notePathValue: string | null, directoryValue: string): Promise<{ path: string }> {
-    const imageDirectory = normalizeRelativePath(directoryValue)
-    if (!imageDirectory) {
-      throw new Error('图片目录不能为空。')
-    }
-
-    const notePath = normalizeRelativePath(notePathValue)
-    const noteParent = notePath ? parentFromPath(notePath) : null
-    const absolutePath = resolveInNotesDir(notesDir, noteParent ? `${noteParent}/${imageDirectory}` : imageDirectory)
+    void notePathValue
+    const { absolutePath } = globalImageDirectoryPath(notesDir, directoryValue)
     await ensureDir(absolutePath)
     return { path: absolutePath }
+  }
+
+  async function cleanupUnusedImages(notesDir: string, directoryValue: string): Promise<CleanupUnusedImagesResult> {
+    const { relativePath: imageDirectory, absolutePath: assetDirAbsolute } = globalImageDirectoryPath(notesDir, directoryValue)
+
+    await ensureNotesIndex(notesDir)
+
+    const referencedAssetPaths = new Set<string>()
+    for (const notePath of state.notes.keys()) {
+      let content = ''
+      try {
+        content = await readFile(resolveInNotesDir(notesDir, notePath), 'utf8')
+      } catch {
+        continue
+      }
+
+      for (const assetPath of extractMarkdownImagePaths(content)) {
+        try {
+          const resolved = resolveNoteAssetPath(notesDir, notePath, assetPath).path
+          const relativeToRoot = relative(resolve(notesDir), resolved).replace(/\\/g, '/')
+          referencedAssetPaths.add(relativeToRoot)
+        } catch {
+          // Ignore invalid or out-of-root image references when cleaning up assets.
+        }
+      }
+    }
+
+    const deletedPaths: string[] = []
+    let entries: Array<{ name: string; isDirectory(): boolean; isFile(): boolean }>
+    try {
+      entries = (await readdir(assetDirAbsolute, { withFileTypes: true, encoding: 'utf8' })) as Array<{
+        name: string
+        isDirectory(): boolean
+        isFile(): boolean
+      }>
+    } catch {
+      return {
+        deletedCount: 0,
+        deletedPaths,
+      }
+    }
+
+    for (const entry of entries) {
+      if (!entry.isFile()) continue
+
+      const assetRelativePath = `${imageDirectory}/${entry.name}`.replace(/\\/g, '/')
+      if (referencedAssetPaths.has(assetRelativePath)) continue
+
+      await rm(resolveInNotesDir(notesDir, assetRelativePath), { force: true })
+      deletedPaths.push(assetRelativePath)
+    }
+
+    return {
+      deletedCount: deletedPaths.length,
+      deletedPaths,
+    }
   }
 
   return {
@@ -890,6 +967,7 @@ export function createNotesService(options: NotesServiceOptions) {
     renameFolder,
     saveImageAsset,
     resolveNoteAssetPath,
-    ensureImageDirectory
+    ensureImageDirectory,
+    cleanupUnusedImages
   }
 }
