@@ -23,7 +23,7 @@ type DraftNote = {
   updatedAt: string | null
 }
 
-const NOTE_LABEL_MAX_LENGTH = 36
+const NOTE_LABEL_MAX_LENGTH = 8
 const defaultQuickCreateSettings: QuickCreateSettings = {
   mode: 'create',
   directory: '/快速创建',

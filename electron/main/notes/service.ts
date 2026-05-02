@@ -86,6 +86,7 @@ type CleanupUnusedImagesResult = {
 }
 
 const NOTE_TITLE_MAX_LENGTH = 36
+const NOTE_FILE_NAME_MAX_LENGTH = 8
 
 export function createNotesService(options: NotesServiceOptions) {
   const state: NotesIndexState = {
@@ -189,10 +190,23 @@ export function createNotesService(options: NotesServiceOptions) {
     return absolutePath
   }
 
+  function normalizeNoteFileStem(name: string): string {
+    return (
+      name
+        .trim()
+        .replace(/[\\/:*?"<>|]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, NOTE_FILE_NAME_MAX_LENGTH)
+        .trim() || 'untitled'
+    )
+  }
+
   function ensureMarkdownName(name: string): string {
     const trimmed = name.trim() || 'untitled'
     const withoutExtension = extname(trimmed).toLowerCase() === '.md' ? parse(trimmed).name : trimmed
-    return `${withoutExtension}.md`
+    const limitedStem = normalizeNoteFileStem(withoutExtension)
+    return `${limitedStem}.md`
   }
 
   function normalizeTitle(title: string): string {

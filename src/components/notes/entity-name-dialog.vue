@@ -24,6 +24,15 @@ const emit = defineEmits<{
 
 const nameValue = ref(props.initialValue)
 const inputRef = ref<InstanceType<typeof Input> | null>(null)
+const NOTE_FILE_NAME_MAX_LENGTH = 8
+
+function normalizeNoteFileName(value: string) {
+  return value
+    .replace(/[\\/:*?"<>|]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, NOTE_FILE_NAME_MAX_LENGTH)
+}
 
 function cancel() {
   emit('cancel')
@@ -48,7 +57,8 @@ onBeforeUnmount(() => {
 })
 
 function onInput(event: Event) {
-  nameValue.value = (event.target as HTMLInputElement).value
+  const nextValue = (event.target as HTMLInputElement).value
+  nameValue.value = props.entityType === 'note' ? normalizeNoteFileName(nextValue) : nextValue
 }
 
 function confirm() {
@@ -72,6 +82,7 @@ function confirm() {
         :value="nameValue"
         class="mt-[var(--space-3)] focus-visible:ring-1 focus-visible:ring-offset-0"
         :placeholder="entityType === 'note' ? '输入文件名' : '输入目录名'"
+        :maxlength="entityType === 'note' ? NOTE_FILE_NAME_MAX_LENGTH : undefined"
         @input="onInput"
         @keydown.enter.prevent="confirm"
       />
