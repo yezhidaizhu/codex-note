@@ -19,6 +19,7 @@ type DraftNote = {
   parentPath: string | null
   nameSeed: string | null
   content: string
+  createdAt: string | null
   updatedAt: string | null
 }
 
@@ -61,7 +62,7 @@ function pathParent(pathValue: string | null): string | null {
 }
 
 function emptyDraft(parentPath: string | null = null): DraftNote {
-  return { path: null, parentPath: normalizePath(parentPath), nameSeed: null, content: '', updatedAt: null }
+  return { path: null, parentPath: normalizePath(parentPath), nameSeed: null, content: '', createdAt: null, updatedAt: null }
 }
 
 function getMeaningfulLines(content: string): string[] {
@@ -122,7 +123,7 @@ function sortNotesByPinned(notes: NoteListItemData[], pinnedPaths: string[]): No
     if (leftPinnedIndex !== undefined) return -1
     if (rightPinnedIndex !== undefined) return 1
 
-    return new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime()
+    return new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime()
   })
 }
 
@@ -326,7 +327,14 @@ export const useNotesStore = defineStore('notes', () => {
       const note = await getNotesApi().readNote(pathValue)
       selectedPath.value = note.path
       lastSavedSnapshot.value = { path: note.path, content: note.content }
-      activeNote.value = { path: note.path, parentPath: note.parentPath, nameSeed: null, content: note.content, updatedAt: note.updatedAt }
+      activeNote.value = {
+        path: note.path,
+        parentPath: note.parentPath,
+        nameSeed: null,
+        content: note.content,
+        createdAt: note.createdAt,
+        updatedAt: note.updatedAt,
+      }
       errorMessage.value = ''
       return true
     } catch (error) {
@@ -409,7 +417,7 @@ function createNote(parentPath: string | null = null) {
   function createNoteWithContent(parentPath: string | null = null, content = '', nameSeed: string | null = null) {
     selectedPath.value = null
     lastSavedSnapshot.value = { path: null, content: '' }
-    activeNote.value = { path: null, parentPath: normalizePath(parentPath), nameSeed, content, updatedAt: null }
+    activeNote.value = { path: null, parentPath: normalizePath(parentPath), nameSeed, content, createdAt: null, updatedAt: null }
     errorMessage.value = ''
   }
 
@@ -446,11 +454,18 @@ function createNote(parentPath: string | null = null) {
           path: result.note.path,
           parentPath: result.note.parentPath,
           nameSeed: null,
+          createdAt: result.note.createdAt,
           content: result.note.content,
           updatedAt: result.note.updatedAt,
         }
       } else if (activeNote.value) {
-        activeNote.value = { ...activeNote.value, path: result.note.path, parentPath: result.note.parentPath, nameSeed: null }
+        activeNote.value = {
+          ...activeNote.value,
+          path: result.note.path,
+          parentPath: result.note.parentPath,
+          nameSeed: null,
+          createdAt: result.note.createdAt,
+        }
       }
 
       if (queuedSave) queuedSave = { ...queuedSave, path: result.note.path, parentPath: result.note.parentPath, nameSeed: null }
@@ -480,6 +495,7 @@ function createNote(parentPath: string | null = null) {
         parentPath: current.parentPath,
         nameSeed: current.nameSeed,
         content: current.content,
+        createdAt: current.createdAt,
         updatedAt: current.updatedAt,
       },
       { allowEmptyDraft: true },
@@ -826,6 +842,7 @@ function createNote(parentPath: string | null = null) {
         parentPath: note.parentPath,
         nameSeed: note.nameSeed,
         content: note.content,
+        createdAt: note.createdAt,
         updatedAt: note.updatedAt,
       }
       const snapshot = lastSavedSnapshot.value

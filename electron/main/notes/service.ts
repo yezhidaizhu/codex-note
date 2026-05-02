@@ -9,6 +9,7 @@ export type NoteListItem = {
   name: string
   parentPath: string | null
   title: string
+  createdAt: string
   updatedAt: string
   size: number
 }
@@ -25,6 +26,7 @@ export type NotePayload = {
   parentPath: string | null
   title: string
   content: string
+  createdAt: string
   updatedAt: string
 }
 
@@ -104,9 +106,17 @@ export function createNotesService(options: NotesServiceOptions) {
   }
 
   function noteTreeSnapshot(): NoteTreeResult {
-    const notes = [...state.notes.values()].sort((left, right) => new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime())
+    const notes = [...state.notes.values()].sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime())
     const folders = [...state.folders.values()].sort((left, right) => left.path.localeCompare(right.path, 'zh-Hans-CN'))
     return { notes, folders }
+  }
+
+  function createdAtFromStat(fileStat: { birthtime: Date; mtime: Date }): string {
+    const birthtimeMs = fileStat.birthtime.getTime()
+    if (Number.isFinite(birthtimeMs) && birthtimeMs > 0) {
+      return fileStat.birthtime.toISOString()
+    }
+    return fileStat.mtime.toISOString()
   }
 
   function emitTreeChanged(): void {
@@ -346,6 +356,7 @@ export function createNotesService(options: NotesServiceOptions) {
         name: basename(absolutePath),
         parentPath: parentFromPath(normalizedPath),
         title: normalizeTitle(titleSeed),
+        createdAt: createdAtFromStat(fileStat),
         updatedAt: fileStat.mtime.toISOString(),
         size: fileStat.size
       },
@@ -595,6 +606,7 @@ export function createNotesService(options: NotesServiceOptions) {
       parentPath: parentFromPath(normalizedPath),
       title: normalizeTitle(firstLine ?? parse(normalizedPath).name),
       content,
+      createdAt: createdAtFromStat(fileStat),
       updatedAt: fileStat.mtime.toISOString()
     }
   }
@@ -602,6 +614,7 @@ export function createNotesService(options: NotesServiceOptions) {
   async function saveNote(notesDir: string, payload: SaveNotePayload): Promise<{ note: NotePayload; notes: NoteListItem[]; folders: FolderListItem[] }> {
     const currentPath = normalizeRelativePath(payload.currentPath ?? null)
     let nextPath: string
+    let shouldRefreshWholeTree = false
 
     if (currentPath) {
       nextPath = currentPath
@@ -610,6 +623,7 @@ export function createNotesService(options: NotesServiceOptions) {
       const parentPath = normalizeRelativePath(payload.parentPath)
       if (parentPath) {
         await ensureDir(resolveInNotesDir(notesDir, parentPath))
+        shouldRefreshWholeTree = !state.folders.has(parentPath)
       }
       const preferredName = payload.name?.trim() || firstMeaningfulLine(payload.content) || 'Untitled'
       nextPath = await uniqueNotePath(notesDir, parentPath, preferredName)
@@ -617,7 +631,12 @@ export function createNotesService(options: NotesServiceOptions) {
     }
 
     await ensureNotesIndex(notesDir)
-    await refreshFileIndexEntry(notesDir, nextPath)
+    if (shouldRefreshWholeTree) {
+      await refreshFolderBranch(notesDir, null)
+      rewireWatchers(notesDir)
+    } else {
+      await refreshFileIndexEntry(notesDir, nextPath)
+    }
     emitTreeChanged()
     const noteTree = noteTreeSnapshot()
 

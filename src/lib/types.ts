@@ -58,6 +58,7 @@ export type NoteListItem = {
   name: string
   parentPath: string | null
   title: string
+  createdAt: string
   updatedAt: string
   size: number
   matchPreview?: string | null
@@ -75,6 +76,7 @@ export type NotePayload = {
   parentPath: string | null
   title: string
   content: string
+  createdAt: string
   updatedAt: string
 }
 

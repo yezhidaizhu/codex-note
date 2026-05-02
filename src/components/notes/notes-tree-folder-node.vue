@@ -205,7 +205,7 @@ function activateNote(path: string, event: MouseEvent) {
         :key="note.path"
         :path="note.path"
         :label="getListLabel(note)"
-        :date-label="formatCompactDate(note.updatedAt)"
+        :date-label="formatCompactDate(note.createdAt)"
         :selected="selectedPath === note.path"
         :is-pinned="pinnedNotePaths.includes(note.path)"
         :checked="selectedPaths.includes(note.path)"
