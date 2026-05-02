@@ -93,56 +93,58 @@ const emit = defineEmits<{
       </div>
     </div>
 
-    <div class="rounded-[calc(var(--radius)-0.05rem)] border border-[color-mix(in_srgb,var(--border)_78%,transparent)] bg-[color-mix(in_srgb,var(--card)_18%,transparent)] px-[calc(var(--settings-panel-pad)-0.1rem)] py-[calc(var(--settings-panel-pad)-0.28rem)]">
-      <div class="space-y-0">
-        <div class="grid gap-[var(--space-3)] py-[calc(var(--settings-panel-pad)-0.18rem)] lg:grid-cols-[136px_minmax(0,1fr)] lg:gap-[var(--space-4)]">
-          <div class="min-w-0">
-            <p class="text-ui-sm font-medium text-[var(--foreground)]">目录规则</p>
-          </div>
-          <div class="min-w-0">
+    <div class="rounded-[calc(var(--radius)-0.05rem)] border border-[color-mix(in_srgb,var(--border)_78%,transparent)] bg-[color-mix(in_srgb,var(--card)_18%,transparent)] p-[calc(var(--settings-panel-pad)-0.1rem)]">
+      <div class="grid gap-[var(--space-3)] pt-0 pb-[calc(var(--settings-panel-pad)-0.05rem)] lg:grid-cols-[136px_minmax(0,1fr)] lg:gap-[var(--space-4)]">
+        <div class="min-w-0">
+          <p class="text-ui-sm font-medium text-[var(--foreground)]">目录规则</p>
+          <p class="text-ui-xs mt-1 text-[var(--muted-foreground)]">定义新插入图片保存到笔记目录里的哪个位置。</p>
+        </div>
+        <div class="min-w-0">
+          <div class="flex w-full flex-col gap-[var(--space-2)] lg:items-end">
             <div
-              class="text-ui-xs flex min-h-9 w-full items-center rounded-[calc(var(--radius)-0.15rem)] border border-[color-mix(in_srgb,var(--border)_84%,transparent)] bg-[color-mix(in_srgb,var(--editor)_20%,transparent)] px-3 font-mono text-[var(--foreground)]"
+              class="text-ui-xs flex min-h-9 w-full items-center rounded-[calc(var(--radius)-0.15rem)] border border-[color-mix(in_srgb,var(--border)_84%,transparent)] bg-[color-mix(in_srgb,var(--editor)_20%,transparent)] px-3 font-mono text-[var(--foreground)] lg:max-w-[420px]"
             >
               {{ editorSettings.imageDirectory }}
             </div>
-            <p class="text-ui-xs mt-[var(--space-2)] leading-5 text-[var(--muted-foreground)]">
+            <p class="text-ui-xs text-[var(--muted-foreground)] lg:max-w-[420px] lg:text-right">
               当前目录：{{ resolvedImageDirectoryPath ?? '未连接笔记目录' }}
             </p>
-            <p class="text-ui-xs mt-1 leading-5 text-[var(--muted-foreground)]">
+            <p class="text-ui-xs text-[var(--muted-foreground)] lg:max-w-[420px] lg:text-right">
               修改后只影响新图片。
             </p>
           </div>
         </div>
+      </div>
 
-        <div class="grid gap-[var(--space-3)] border-t border-[color-mix(in_srgb,var(--border)_72%,transparent)] py-[calc(var(--settings-panel-pad)-0.18rem)] lg:grid-cols-[136px_minmax(0,1fr)] lg:gap-[var(--space-4)]">
-          <div class="min-w-0">
-            <p class="text-ui-sm font-medium text-[var(--foreground)]">目录操作</p>
-          </div>
-          <div class="min-w-0">
-            <div class="flex flex-wrap gap-[var(--space-2)]">
-              <Button variant="ghost" size="sm" class="gap-[var(--space-1)]" @click="emit('openImageDirectory')">
-                <FolderOpen class="h-3.5 w-3.5" />
-                打开目录
-              </Button>
-              <Button variant="secondary" size="sm" class="gap-[var(--space-1)]" @click="emit('requestEditImageDirectory')">
-                修改目录
-              </Button>
-            </div>
+      <div class="grid gap-[var(--space-3)] border-t border-[color-mix(in_srgb,var(--border)_72%,transparent)] py-[calc(var(--settings-panel-pad)-0.05rem)] lg:grid-cols-[136px_minmax(0,1fr)] lg:gap-[var(--space-4)]">
+        <div class="min-w-0">
+          <p class="text-ui-sm font-medium text-[var(--foreground)]">目录操作</p>
+          <p class="text-ui-xs mt-1 text-[var(--muted-foreground)]">打开当前图片目录，或更新之后新图片的保存规则。</p>
+        </div>
+        <div class="min-w-0">
+          <div class="flex w-full flex-wrap gap-[var(--space-2)] lg:justify-end">
+            <Button variant="ghost" size="sm" class="gap-[var(--space-1)]" @click="emit('openImageDirectory')">
+              <FolderOpen class="h-3.5 w-3.5" />
+              打开目录
+            </Button>
+            <Button variant="secondary" size="sm" class="gap-[var(--space-1)]" @click="emit('requestEditImageDirectory')">
+              修改目录
+            </Button>
           </div>
         </div>
+      </div>
 
-        <div class="grid gap-[var(--space-3)] border-t border-[color-mix(in_srgb,var(--destructive)_22%,var(--border))] py-[calc(var(--settings-panel-pad)-0.18rem)] lg:grid-cols-[136px_minmax(0,1fr)] lg:gap-[var(--space-4)]">
-          <div class="min-w-0">
-            <p class="text-ui-sm font-medium text-[var(--foreground)]">清理未引用图片</p>
-          </div>
-          <div class="min-w-0">
-            <p class="text-ui-xs leading-5 text-[var(--muted-foreground)]">
-              只清理下面这个目录里的图片；是否仍被使用，会按整个笔记库里的 Markdown 引用来判断。
-            </p>
-            <p class="text-ui-xs mt-1 break-all font-mono text-[var(--muted-foreground)]">
+      <div class="grid gap-[var(--space-3)] border-t border-[color-mix(in_srgb,var(--destructive)_22%,var(--border))] py-[calc(var(--settings-panel-pad)-0.05rem)] lg:grid-cols-[136px_minmax(0,1fr)] lg:gap-[var(--space-4)]">
+        <div class="min-w-0">
+          <p class="text-ui-sm font-medium text-[var(--foreground)]">清理未引用图片</p>
+          <p class="text-ui-xs mt-1 text-[var(--muted-foreground)]">按整个笔记库里的 Markdown 引用，清理当前图片目录中未被使用的文件。</p>
+        </div>
+        <div class="min-w-0">
+          <div class="flex w-full flex-col gap-[var(--space-2)] lg:items-end">
+            <p class="text-ui-xs break-all font-mono text-[var(--muted-foreground)] lg:max-w-[420px] lg:text-right">
               清理目录：{{ resolvedImageDirectoryPath ?? '未连接笔记目录' }}
             </p>
-            <div class="mt-[var(--space-2)]">
+            <div class="flex w-full lg:justify-end">
               <Button variant="ghost" size="sm" class="gap-[var(--space-1)] text-[var(--destructive)]" @click="emit('cleanupUnusedImages')">
                 <Trash2 class="h-3.5 w-3.5" />
                 清理未引用
