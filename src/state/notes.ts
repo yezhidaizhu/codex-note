@@ -1,6 +1,7 @@
 import { computed, ref, watch } from 'vue'
 import { defineStore } from 'pinia'
 import dayjs from 'dayjs'
+import { toast } from 'vue-sonner'
 import type {
   EditorSettings,
   FolderListItem,
@@ -97,6 +98,10 @@ function inferInitialNoteName(content: string): string {
 function noteLabelFromName(name: string): string {
   const stem = name.replace(/\.md$/i, '').trim()
   return stem || 'Untitled'
+}
+
+function showToastForCleanupResult() {
+  toast.success('清理完')
 }
 
 function sortNotesByPinned(notes: NoteListItemData[], pinnedPaths: string[]): NoteListItemData[] {
@@ -740,13 +745,12 @@ function createNote(parentPath: string | null = null) {
   async function cleanupUnusedImages(directory: string) {
     try {
       const result = await getNotesApi().cleanupUnusedImages(directory)
-      errorMessage.value =
-        result.deletedCount > 0
-          ? `已清理 ${result.deletedCount} 张未引用图片。`
-          : '没有发现未引用图片。'
+      errorMessage.value = ''
+      showToastForCleanupResult()
       return result
     } catch (error) {
       errorMessage.value = error instanceof Error ? error.message : '清理未引用图片失败。'
+      toast.error('清理失败')
       throw error
     }
   }

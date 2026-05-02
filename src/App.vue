@@ -2,6 +2,7 @@
 import { onMounted, onUnmounted } from 'vue'
 import { RouterView } from 'vue-router'
 import { useRouter } from 'vue-router'
+import { Toaster } from 'vue-sonner'
 import { useEditorSettingsStore } from '@/state/editor-settings'
 import { useNoteStyleStore } from '@/state/note-style'
 import { useNotesStore } from '@/state/notes'
@@ -43,5 +44,22 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <RouterView />
+  <div class="contents">
+    <RouterView />
+    <Toaster
+      position="bottom-right"
+      theme="system"
+      :rich-colors="true"
+      :close-button="false"
+      :visible-toasts="1"
+      :expand="false"
+      :offset="14"
+      :mobile-offset="12"
+      :toast-options="{
+        duration: 1150,
+        class: 'min-h-0 w-auto min-w-0 rounded-[10px] px-2.5 py-1.5 text-[11px] leading-none shadow-[0_8px_18px_rgba(0,0,0,0.12)]',
+        descriptionClass: 'hidden',
+      }"
+    />
+  </div>
 </template>
