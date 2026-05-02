@@ -1,8 +1,9 @@
 import type { NotesStore } from '@/state/notes'
 import { onMounted, onUnmounted } from 'vue'
 
-export function useNoteEditor(store: NotesStore) {
+export function useNoteEditor(store: NotesStore, options: { clearSelection?: () => void } = {}) {
   function createNoteAndFocus(parentPath: string | null = null) {
+    options.clearSelection?.()
     store.createNote(parentPath)
     store.requestEditorFocus()
   }

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { FilePlus2, FolderOpen } from 'lucide-vue-next'
 import { storeToRefs } from 'pinia'
-import { onBeforeUnmount, onMounted } from 'vue'
+import { onBeforeUnmount, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import ConfirmDialog from '@/components/confirm-dialog.vue'
 import EntityNameDialog from '@/components/notes/entity-name-dialog.vue'
@@ -59,7 +59,9 @@ const {
   deleteFolderFromContextMenu,
 } = useIndexPageActions(store)
 
-const noteEditor = useNoteEditor(store)
+const noteEditor = useNoteEditor(store, {
+  clearSelection: clearNoteSelection,
+})
 const { isResizing: isSidebarResizing, beginResize: beginSidebarResize } = usePanelResize(sidebarWidth, sidebarCollapsed, {
   minWidth: 220,
   maxWidth: 520,
@@ -88,6 +90,15 @@ onMounted(() => {
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', handleWindowKeydown)
 })
+
+watch(
+  () => selectedPath.value,
+  (path, previousPath) => {
+    if (path === null && previousPath !== null) {
+      clearNoteSelection()
+    }
+  },
+)
 </script>
 
 <template>
