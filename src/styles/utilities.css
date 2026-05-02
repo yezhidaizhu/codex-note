@@ -1,0 +1,36 @@
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scroll-thumb-firefox) transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: var(--scrollbar-size);
+  height: var(--scrollbar-size);
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: var(--scroll-thumb);
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background-clip: padding-box;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: var(--scroll-thumb-hover);
+  background-clip: padding-box;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: var(--scroll-track);
+}
+
+.drag-region {
+  -webkit-app-region: drag;
+  app-region: drag;
+  user-select: none;
+}
+
+.no-drag {
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+}

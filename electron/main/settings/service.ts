@@ -21,6 +21,10 @@ export type StoredSettings = {
     writeClipboardOnCreate: boolean
     namingRule: 'default' | 'datetime'
   }
+  editor: {
+    enabledFeatures: Array<'heading' | 'bold' | 'italic' | 'blockquote' | 'bulletList' | 'orderedList' | 'taskList' | 'codeBlock' | 'link' | 'image'>
+    imageDirectory: string
+  }
   pinnedNotePaths: string[]
 }
 
@@ -45,6 +49,10 @@ export const defaultSettings: StoredSettings = {
     targetPath: '',
     writeClipboardOnCreate: false,
     namingRule: 'default'
+  },
+  editor: {
+    enabledFeatures: ['heading', 'bold', 'italic', 'blockquote', 'bulletList', 'orderedList', 'taskList', 'codeBlock', 'link', 'image'],
+    imageDirectory: '.assets'
   },
   pinnedNotePaths: []
 }
@@ -141,6 +149,44 @@ export function sanitizeQuickCreateNamingRule(value: 'default' | 'datetime' | nu
   return value === 'datetime' ? 'datetime' : 'default'
 }
 
+const editorFeatureKeys = new Set(defaultSettings.editor.enabledFeatures)
+
+export function sanitizeEditorEnabledFeatures(
+  value: Array<'heading' | 'bold' | 'italic' | 'blockquote' | 'bulletList' | 'orderedList' | 'taskList' | 'codeBlock' | 'link' | 'image'> | null | undefined,
+): StoredSettings['editor']['enabledFeatures'] {
+  if (!Array.isArray(value)) {
+    return [...defaultSettings.editor.enabledFeatures]
+  }
+
+  const deduped = new Set<StoredSettings['editor']['enabledFeatures'][number]>()
+  for (const feature of value) {
+    if (editorFeatureKeys.has(feature)) {
+      deduped.add(feature)
+    }
+  }
+
+  return deduped.size > 0 ? [...deduped] : [...defaultSettings.editor.enabledFeatures]
+}
+
+export function sanitizeEditorImageDirectory(value: string | null | undefined): string {
+  if (typeof value !== 'string') {
+    return defaultSettings.editor.imageDirectory
+  }
+
+  const normalizedSegments = value
+    .replace(/\\/g, '/')
+    .split('/')
+    .map((segment) => segment.trim())
+    .filter((segment) => segment.length > 0 && segment !== '.')
+
+  if (normalizedSegments.length === 0 || normalizedSegments.some((segment) => segment === '..')) {
+    return defaultSettings.editor.imageDirectory
+  }
+
+  const joined = normalizedSegments.join('/')
+  return joined.startsWith('.') ? joined : `.${joined}`
+}
+
 export function sanitizePinnedNotePaths(value: string[] | null | undefined): string[] {
   if (!Array.isArray(value)) {
     return [...defaultSettings.pinnedNotePaths]
@@ -175,6 +221,10 @@ export async function readSettings(): Promise<StoredSettings> {
       ...defaultSettings.quickCreate,
       ...(parsed.quickCreate ?? {})
     }
+    const parsedEditor = {
+      ...defaultSettings.editor,
+      ...(parsed.editor ?? {})
+    }
 
     return {
       notesDir: parsed.notesDir ?? defaultSettings.notesDir,
@@ -190,6 +240,10 @@ export async function readSettings(): Promise<StoredSettings> {
         targetPath: sanitizeQuickCreateTargetPath(parsedQuickCreate.targetPath),
         writeClipboardOnCreate: sanitizeQuickCreateWriteClipboardOnCreate(parsedQuickCreate.writeClipboardOnCreate),
         namingRule: sanitizeQuickCreateNamingRule(parsedQuickCreate.namingRule)
+      },
+      editor: {
+        enabledFeatures: sanitizeEditorEnabledFeatures(parsedEditor.enabledFeatures),
+        imageDirectory: sanitizeEditorImageDirectory(parsedEditor.imageDirectory)
       },
       pinnedNotePaths: sanitizePinnedNotePaths(parsed.pinnedNotePaths)
     }

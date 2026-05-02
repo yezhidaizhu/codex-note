@@ -4,6 +4,8 @@ import { CircleArrowLeft } from 'lucide-vue-next'
 import { storeToRefs } from 'pinia'
 import { useRouter } from 'vue-router'
 import Button from '@/components/ui/button.vue'
+import EntityNameDialog from '@/components/notes/entity-name-dialog.vue'
+import EditorSettingsSection from '@/components/settings/editor-settings-section.vue'
 import AppearanceSettingsSection from '@/components/settings/appearance-settings-section.vue'
 import AutomationSettingsSection from '@/components/settings/automation-settings-section.vue'
 import GeneralSettingsSection from '@/components/settings/general-settings-section.vue'
@@ -14,21 +16,26 @@ import {
   resolveAppearanceMode,
   useNoteStyleStore,
 } from '@/state/note-style'
+import { useEditorSettingsStore } from '@/state/editor-settings'
 import { useNotesStore } from '@/state/notes'
-import type { AppearanceDensity, AppearanceMode, AppearanceTheme } from '@/lib/types'
+import type { AppearanceDensity, AppearanceMode, AppearanceTheme, EditorFeatureKey } from '@/lib/types'
 
 const router = useRouter()
 const notesStore = useNotesStore()
 const noteStyleStore = useNoteStyleStore()
+const editorSettingsStore = useEditorSettingsStore()
 const { notes, selectedPath, notesDir, quickCreate, sidebarWidth } = storeToRefs(notesStore)
 const { appearance } = storeToRefs(noteStyleStore)
+const { settings: editorSettings } = storeToRefs(editorSettingsStore)
 
 const sections = [
   { key: 'general', label: '通用' },
+  { key: 'editor', label: '编辑器' },
   { key: 'appearance', label: '外观' },
   { key: 'automation', label: '自动化' },
 ] as const
 const activeSectionKey = ref<(typeof sections)[number]['key']>('general')
+const editorImageDirectoryDialogOpen = ref(false)
 const settingsSidebarCollapsed = computed(() => false)
 const { isResizing: isSettingsSidebarResizing, beginResize: beginSettingsSidebarResize } = usePanelResize(
   sidebarWidth,
@@ -108,6 +115,27 @@ function updateQuickCreateWriteClipboardOnCreate(writeClipboardOnCreate: boolean
 function updateQuickCreateNamingRule(namingRule: 'default' | 'datetime') {
   void notesStore.updateQuickCreateSettings({ ...quickCreate.value, namingRule })
 }
+
+function toggleEditorFeature(feature: EditorFeatureKey, enabled: boolean) {
+  void editorSettingsStore.setFeatureEnabled(feature, enabled)
+}
+
+function updateEditorImageDirectory(imageDirectory: string) {
+  void editorSettingsStore.updateImageDirectory(imageDirectory)
+}
+
+function openEditorImageDirectoryDialog() {
+  editorImageDirectoryDialogOpen.value = true
+}
+
+function confirmEditorImageDirectory(imageDirectory: string) {
+  editorImageDirectoryDialogOpen.value = false
+  updateEditorImageDirectory(imageDirectory)
+}
+
+function openEditorImageDirectory() {
+  void notesStore.openImageDirectory(selectedPath.value, editorSettings.value.imageDirectory)
+}
 </script>
 
 <template>
@@ -186,6 +214,14 @@ function updateQuickCreateNamingRule(namingRule: 'default' | 'datetime') {
             </p>
           </template>
 
+          <template v-else-if="activeSection.key === 'editor'">
+            <p class="text-ui-xs uppercase tracking-[0.24em] text-[var(--muted-foreground)]">Editor</p>
+            <h1 class="mt-[var(--space-2)] text-3xl font-semibold tracking-tight">编辑器设置</h1>
+            <p class="text-ui-md mt-[var(--space-3)] max-w-2xl leading-7 text-[var(--muted-foreground)]">
+              控制 Markdown 编辑器暴露出来的能力，以及图片粘贴时的隐藏附件目录。
+            </p>
+          </template>
+
           <template v-else-if="activeSection.key === 'automation'">
             <p class="text-ui-xs uppercase tracking-[0.24em] text-[var(--muted-foreground)]">Automation</p>
             <h1 class="mt-[var(--space-2)] text-3xl font-semibold tracking-tight">自动化设置</h1>
@@ -212,6 +248,14 @@ function updateQuickCreateNamingRule(namingRule: 'default' | 'datetime') {
           :has-selected-note="hasSelectedNote"
           @choose-directory="notesStore.chooseDirectory"
           @open-directory="notesStore.openNotesDirectory"
+        />
+
+        <EditorSettingsSection
+          v-else-if="activeSection.key === 'editor'"
+          :editor-settings="editorSettings"
+          @toggle-feature="toggleEditorFeature"
+          @open-image-directory="openEditorImageDirectory"
+          @request-edit-image-directory="openEditorImageDirectoryDialog"
         />
 
         <AutomationSettingsSection
@@ -241,5 +285,15 @@ function updateQuickCreateNamingRule(namingRule: 'default' | 'datetime') {
         />
       </div>
     </main>
+
+    <EntityNameDialog
+      v-if="editorImageDirectoryDialogOpen"
+      title="修改图片目录"
+      confirm-label="保存"
+      :initial-value="editorSettings.imageDirectory"
+      entity-type="folder"
+      @cancel="editorImageDirectoryDialogOpen = false"
+      @confirm="confirmEditorImageDirectory"
+    />
   </div>
 </template>

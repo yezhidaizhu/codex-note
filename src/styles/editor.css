@@ -1,0 +1,125 @@
+@import "@milkdown/prose/view/style/prosemirror.css";
+
+.ProseMirror {
+  min-height: 100%;
+  outline: none;
+  color: var(--foreground);
+  font-size: 15px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+}
+
+.ProseMirror.milkdown-placeholder-root {
+  position: relative;
+}
+
+.ProseMirror .milkdown-placeholder-paragraph {
+  position: relative;
+}
+
+.ProseMirror .milkdown-placeholder-paragraph::before {
+  content: attr(data-placeholder);
+  position: absolute;
+  inset-inline-start: 0;
+  top: 0;
+  color: var(--muted-foreground);
+  pointer-events: none;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.ProseMirror > * {
+  margin: 0;
+}
+
+.ProseMirror > * + * {
+  margin-top: 0.7rem;
+}
+
+.ProseMirror p {
+  margin: 0;
+}
+
+.ProseMirror ul,
+.ProseMirror ol {
+  margin: 0;
+  padding-left: 1.5rem;
+}
+
+.ProseMirror ul {
+  list-style: disc;
+}
+
+.ProseMirror ol {
+  list-style: decimal;
+}
+
+.ProseMirror li {
+  margin: 0;
+  line-height: 1.45;
+}
+
+.ProseMirror li + li {
+  margin-top: 0.08rem;
+}
+
+.ProseMirror li > p {
+  margin: 0;
+  line-height: 1.45;
+}
+
+.ProseMirror li > ul,
+.ProseMirror li > ol {
+  margin-top: 0.35rem;
+}
+
+.ProseMirror h1,
+.ProseMirror h2,
+.ProseMirror h3 {
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+.ProseMirror h1 {
+  font-size: 1.45rem;
+}
+
+.ProseMirror h2 {
+  font-size: 1.2rem;
+}
+
+.ProseMirror h3 {
+  font-size: 1.02rem;
+}
+
+.ProseMirror blockquote {
+  border-left: 3px solid color-mix(in srgb, var(--primary) 60%, transparent);
+  padding-left: 0.85rem;
+  color: color-mix(in srgb, var(--foreground) 78%, var(--muted-foreground));
+}
+
+.ProseMirror pre {
+  overflow-x: auto;
+  border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+  border-radius: calc(var(--radius) - 0.1rem);
+  background: color-mix(in srgb, var(--card) 82%, transparent);
+  padding: 0.85rem 1rem;
+  line-height: 1.6;
+}
+
+.ProseMirror code {
+  font-family: "JetBrains Mono", "SFMono-Regular", "SF Mono", Consolas, monospace;
+  font-size: 0.92em;
+}
+
+.ProseMirror a {
+  color: var(--primary);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.ProseMirror img {
+  display: block;
+  max-width: 100%;
+  border-radius: calc(var(--radius) - 0.1rem);
+}

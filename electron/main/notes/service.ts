@@ -1,6 +1,7 @@
 import { watch, type FSWatcher } from 'node:fs'
 import { mkdir, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/promises'
 import { basename, dirname, extname, join, parse, relative, resolve } from 'node:path'
+import { randomUUID } from 'node:crypto'
 import { searchNotes as runSearch, type NotesSearchMode } from '../search'
 
 export type NoteListItem = {
@@ -67,6 +68,14 @@ type NotesServiceOptions = {
   getNotesDirSetting: () => Promise<string | null>
   onTreeChanged?: (tree: NoteTreeResult) => void
   defaultSearchMode?: NotesSearchMode
+}
+
+type SaveImageAssetPayload = {
+  notePath: string
+  directory: string
+  fileName: string
+  mimeType: string
+  bytes: Uint8Array
 }
 
 const NOTE_TITLE_MAX_LENGTH = 36
@@ -205,6 +214,25 @@ export function createNotesService(options: NotesServiceOptions) {
 
   function isMarkdownFile(pathValue: string): boolean {
     return extname(pathValue).toLowerCase() === '.md'
+  }
+
+  function isHiddenPath(pathValue: string): boolean {
+    return pathValue.replace(/\\/g, '/').split('/').some((segment) => segment.startsWith('.'))
+  }
+
+  function extensionFromMimeType(mimeType: string): string {
+    switch (mimeType.toLowerCase()) {
+      case 'image/jpeg':
+        return '.jpg'
+      case 'image/gif':
+        return '.gif'
+      case 'image/webp':
+        return '.webp'
+      case 'image/svg+xml':
+        return '.svg'
+      default:
+        return '.png'
+    }
   }
 
   function removeFolderBranch(folderPath: string, options: { includeSelf?: boolean } = {}): void {
@@ -350,6 +378,10 @@ export function createNotesService(options: NotesServiceOptions) {
       const entryRelativePath = normalizedFolderPath ? `${normalizedFolderPath}/${entry.name}` : entry.name
 
       if (entry.isDirectory()) {
+        if (isHiddenPath(entryRelativePath)) {
+          continue
+        }
+
         state.folders.set(entryRelativePath, {
           path: entryRelativePath,
           name: entry.name,
@@ -754,6 +786,87 @@ export function createNotesService(options: NotesServiceOptions) {
     }
   }
 
+  async function saveImageAsset(notesDir: string, payload: SaveImageAssetPayload): Promise<{ relativePath: string }> {
+    const notePath = normalizeRelativePath(payload.notePath)
+    if (!notePath) {
+      throw new Error('笔记路径不能为空。')
+    }
+
+    const imageDirectory = normalizeRelativePath(payload.directory)
+    if (!imageDirectory) {
+      throw new Error('图片目录不能为空。')
+    }
+
+    const noteParent = parentFromPath(notePath)
+    const noteParentAbsolute = resolveInNotesDir(notesDir, noteParent)
+    const assetDirAbsolute = resolveInNotesDir(notesDir, noteParent ? `${noteParent}/${imageDirectory}` : imageDirectory)
+    await ensureDir(assetDirAbsolute)
+
+    const rawStem = payload.fileName
+      .replace(/\.[^.]+$/, '')
+      .replace(/[^\w.-]+/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '')
+      .toLowerCase()
+    const stem = rawStem || `image-${randomUUID().slice(0, 8)}`
+    const extension = extname(payload.fileName).toLowerCase() || extensionFromMimeType(payload.mimeType)
+    let candidateName = `${stem}${extension}`
+    let absolutePath = join(assetDirAbsolute, candidateName)
+    let suffix = 1
+    for (;;) {
+      try {
+        await stat(absolutePath)
+        candidateName = `${stem}-${suffix}${extension}`
+        absolutePath = join(assetDirAbsolute, candidateName)
+        suffix += 1
+      } catch {
+        break
+      }
+    }
+    await writeFile(absolutePath, payload.bytes)
+
+    const relativeAssetPath = relative(noteParentAbsolute, absolutePath).replace(/\\/g, '/')
+    return {
+      relativePath: relativeAssetPath.startsWith('.') ? relativeAssetPath : `./${relativeAssetPath}`
+    }
+  }
+
+  function resolveNoteAssetPath(notesDir: string, notePathValue: string, assetPathValue: string): { path: string } {
+    const notePath = normalizeRelativePath(notePathValue)
+    if (!notePath) {
+      throw new Error('笔记路径不能为空。')
+    }
+
+    const assetPath = assetPathValue.replace(/\\/g, '/').trim()
+    if (!assetPath) {
+      throw new Error('图片路径不能为空。')
+    }
+
+    const noteParentAbsolute = resolveInNotesDir(notesDir, parentFromPath(notePath))
+    const absolutePath = resolve(noteParentAbsolute, assetPath)
+    const rootPath = resolve(notesDir)
+    const relativeToRoot = relative(rootPath, absolutePath)
+
+    if (relativeToRoot.startsWith('..') || relativeToRoot.includes('/../') || relativeToRoot.includes('\\..\\')) {
+      throw new Error('路径越界。')
+    }
+
+    return { path: absolutePath }
+  }
+
+  async function ensureImageDirectory(notesDir: string, notePathValue: string | null, directoryValue: string): Promise<{ path: string }> {
+    const imageDirectory = normalizeRelativePath(directoryValue)
+    if (!imageDirectory) {
+      throw new Error('图片目录不能为空。')
+    }
+
+    const notePath = normalizeRelativePath(notePathValue)
+    const noteParent = notePath ? parentFromPath(notePath) : null
+    const absolutePath = resolveInNotesDir(notesDir, noteParent ? `${noteParent}/${imageDirectory}` : imageDirectory)
+    await ensureDir(absolutePath)
+    return { path: absolutePath }
+  }
+
   return {
     dispose: () => resetIndex(null),
     getSearchMode: () => searchMode,
@@ -774,6 +887,9 @@ export function createNotesService(options: NotesServiceOptions) {
     moveNote,
     moveFolder,
     renameNote,
-    renameFolder
+    renameFolder,
+    saveImageAsset,
+    resolveNoteAssetPath,
+    ensureImageDirectory
   }
 }

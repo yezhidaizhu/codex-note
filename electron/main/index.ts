@@ -1,6 +1,6 @@
-import { dirname, join, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
-import { app, BrowserWindow, clipboard, dialog, globalShortcut, ipcMain, Menu, nativeImage, nativeTheme, screen, shell, Tray } from 'electron'
+import { dirname, isAbsolute, join, relative, resolve } from 'node:path'
+import { fileURLToPath, pathToFileURL } from 'node:url'
+import { app, BrowserWindow, clipboard, dialog, globalShortcut, ipcMain, Menu, nativeImage, nativeTheme, net, protocol, screen, shell, Tray } from 'electron'
 import { MAIN_CONFIG } from './config'
 import {
   clampWindowFrameToWorkArea,
@@ -16,6 +16,8 @@ import {
   readSettings,
   sanitizeBackgroundColor,
   sanitizeBackgroundOpacity,
+  sanitizeEditorEnabledFeatures,
+  sanitizeEditorImageDirectory,
   sanitizePinnedNotePaths,
   sanitizeQuickCreateDirectory,
   sanitizeQuickCreateNamingRule,
@@ -38,6 +40,7 @@ const currentDir = dirname(fileURLToPath(import.meta.url))
 const appIconPath = join(currentDir, '../../resources/icon.png')
 const trayTemplateIconPath = join(currentDir, '../../resources/trayTemplate.png')
 const trayTemplateIcon2xPath = join(currentDir, '../../resources/trayTemplate@2x.png')
+const NOTE_ASSET_SCHEME = 'note-asset'
 const notesService = createNotesService({
   getNotesDirSetting: async () => (await readSettings()).notesDir,
   defaultSearchMode: MAIN_CONFIG.search.defaultMode,
@@ -49,6 +52,47 @@ const notesService = createNotesService({
     mainWindow.webContents.send('notes:tree-changed', tree)
   }
 })
+
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: NOTE_ASSET_SCHEME,
+    privileges: {
+      standard: true,
+      secure: true,
+      supportFetchAPI: true,
+      corsEnabled: true,
+    },
+  },
+])
+
+function buildNoteAssetPreviewUrl(path: string): string {
+  return `${NOTE_ASSET_SCHEME}://local/?path=${encodeURIComponent(path)}`
+}
+
+function isPathInsideRoot(rootPath: string, targetPath: string): boolean {
+  const relativePath = relative(resolve(rootPath), resolve(targetPath))
+  return relativePath !== '..' && !isAbsolute(relativePath) && !relativePath.startsWith(`..${process.platform === 'win32' ? '\\' : '/'}`)
+}
+
+function registerNoteAssetProtocol(): void {
+  protocol.handle(NOTE_ASSET_SCHEME, async (request) => {
+    try {
+      const requestedPath = new URL(request.url).searchParams.get('path')?.trim()
+      if (!requestedPath) {
+        return new Response('Missing asset path.', { status: 400 })
+      }
+
+      const notesDir = await notesService.getNotesDirOrThrow()
+      if (!isPathInsideRoot(notesDir, requestedPath)) {
+        return new Response('Forbidden.', { status: 403 })
+      }
+
+      return net.fetch(pathToFileURL(resolve(requestedPath)).toString())
+    } catch {
+      return new Response('Not found.', { status: 404 })
+    }
+  })
+}
 
 function currentSystemAppearance(): 'dark' | 'light' {
   return nativeTheme.shouldUseDarkColors ? 'dark' : 'light'
@@ -447,6 +491,7 @@ async function createWindow(): Promise<void> {
 }
 
 app.whenReady().then(() => {
+  registerNoteAssetProtocol()
   app.on('before-quit', () => {
     isQuitting = true
   })
@@ -503,6 +548,7 @@ ipcMain.handle('settings:get', async () => {
     notes: noteTree.notes,
     folders: noteTree.folders,
     appearance: settings.appearance,
+    editor: settings.editor,
     pinnedNotePaths: settings.pinnedNotePaths
   }
 })
@@ -529,6 +575,7 @@ ipcMain.handle('notes:choose-directory', async () => {
     folders: noteTree.folders,
     appearance: current.appearance,
     quickCreate: current.quickCreate,
+    editor: current.editor,
     pinnedNotePaths: current.pinnedNotePaths
   }
 })
@@ -584,6 +631,23 @@ ipcMain.handle('settings:update-quick-create', async (_event, quickCreate: Store
   })
 
   return nextQuickCreate
+})
+
+ipcMain.handle('settings:update-editor', async (_event, editor: StoredSettings['editor']) => {
+  const current = await readSettings()
+  const nextEditor = {
+    enabledFeatures:
+      editor.enabledFeatures === undefined ? current.editor.enabledFeatures : sanitizeEditorEnabledFeatures(editor.enabledFeatures),
+    imageDirectory:
+      editor.imageDirectory === undefined ? current.editor.imageDirectory : sanitizeEditorImageDirectory(editor.imageDirectory)
+  }
+
+  await writeSettings({
+    ...current,
+    editor: nextEditor
+  })
+
+  return nextEditor
 })
 
 ipcMain.handle('settings:update-pinned-note-paths', async (_event, pinnedNotePaths: string[]) => {
@@ -688,6 +752,28 @@ ipcMain.handle('notes:get-absolute-path', async (_event, relativePath: string) =
   }
 })
 
+ipcMain.handle(
+  'notes:save-image-asset',
+  async (_event, payload: { notePath: string; directory: string; fileName: string; mimeType: string; bytes: Uint8Array }) => {
+    const notesDir = await notesService.getNotesDirOrThrow()
+    return notesService.saveImageAsset(notesDir, payload)
+  },
+)
+
+ipcMain.handle('notes:resolve-note-asset-path', async (_event, notePath: string, assetPath: string) => {
+  const notesDir = await notesService.getNotesDirOrThrow()
+  const { path } = notesService.resolveNoteAssetPath(notesDir, notePath, assetPath)
+  return {
+    path,
+    fileUrl: buildNoteAssetPreviewUrl(path),
+  }
+})
+
+ipcMain.handle('notes:resolve-image-directory-path', async (_event, payload: { notePath: string | null; directory: string }) => {
+  const notesDir = await notesService.getNotesDirOrThrow()
+  return notesService.ensureImageDirectory(notesDir, payload.notePath, payload.directory)
+})
+
 ipcMain.handle('clipboard:write-text', async (_event, value: string) => {
   try {
     clipboard.writeText(value)
@@ -702,19 +788,25 @@ ipcMain.handle('clipboard:write-text', async (_event, value: string) => {
   }
 })
 
-ipcMain.handle('notes:open-directory', async () => {
-  const notesDir = await notesService.getNotesDirOrThrow()
-  const error = await shell.openPath(notesDir)
+ipcMain.handle('shell:open-directory-path', async (_event, directoryPath: string) => {
+  try {
+    const error = await shell.openPath(directoryPath)
 
-  if (error) {
+    if (error) {
+      return {
+        ok: false,
+        error
+      }
+    }
+
+    return {
+      ok: true
+    }
+  } catch (error) {
     return {
       ok: false,
-      error
+      error: error instanceof Error ? error.message : '打开目录失败。'
     }
-  }
-
-  return {
-    ok: true
   }
 })
 

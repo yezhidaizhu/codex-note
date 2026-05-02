@@ -2,15 +2,18 @@
 import { onMounted, onUnmounted } from 'vue'
 import { RouterView } from 'vue-router'
 import { useRouter } from 'vue-router'
+import { useEditorSettingsStore } from '@/state/editor-settings'
 import { useNoteStyleStore } from '@/state/note-style'
 import { useNotesStore } from '@/state/notes'
 
 const router = useRouter()
 const noteStyleStore = useNoteStyleStore()
+const editorSettingsStore = useEditorSettingsStore()
 const notesStore = useNotesStore()
 let disposeQuickCreateListener: (() => void) | null = null
 
 void noteStyleStore.ensureInitialized()
+void editorSettingsStore.ensureInitialized()
 void notesStore.ensureInitialized()
 
 onMounted(() => {

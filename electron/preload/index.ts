@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { AppearanceSettings, NoteTreeResult, QuickCreateSettings } from '@/lib/types'
+import type { AppearanceSettings, EditorSettings, NoteTreeResult, QuickCreateSettings } from '@/lib/types'
 
 const api = {
   getSettings: () => ipcRenderer.invoke('settings:get'),
@@ -30,6 +30,12 @@ const api = {
   readNote: (path: string) => ipcRenderer.invoke('notes:read', path),
   saveNote: (payload: { currentPath?: string | null; parentPath: string | null; name?: string; content: string }) =>
     ipcRenderer.invoke('notes:save', payload),
+  saveImageAsset: (payload: { notePath: string; directory: string; fileName: string; mimeType: string; bytes: Uint8Array }) =>
+    ipcRenderer.invoke('notes:save-image-asset', payload) as Promise<{ relativePath: string }>,
+  resolveNoteAssetPath: (notePath: string, assetPath: string) =>
+    ipcRenderer.invoke('notes:resolve-note-asset-path', notePath, assetPath) as Promise<{ path: string; fileUrl: string }>,
+  resolveImageDirectoryPath: (payload: { notePath: string | null; directory: string }) =>
+    ipcRenderer.invoke('notes:resolve-image-directory-path', payload) as Promise<{ path: string }>,
   deleteNote: (path: string) => ipcRenderer.invoke('notes:delete', path),
   createFolder: (parentPath: string | null, name: string) => ipcRenderer.invoke('notes:create-folder', parentPath, name),
   deleteFolder: (path: string) => ipcRenderer.invoke('notes:delete-folder', path),
@@ -38,10 +44,11 @@ const api = {
   renameNote: (path: string, name: string) => ipcRenderer.invoke('notes:rename-note', path, name),
   renameFolder: (path: string, name: string) => ipcRenderer.invoke('notes:rename-folder', path, name),
   getAbsoluteNotePath: (path: string) => ipcRenderer.invoke('notes:get-absolute-path', path) as Promise<{ path: string }>,
-  openNotesDirectory: () => ipcRenderer.invoke('notes:open-directory'),
+  openDirectoryPath: (path: string) => ipcRenderer.invoke('shell:open-directory-path', path),
   writeClipboardText: (value: string) => ipcRenderer.invoke('clipboard:write-text', value),
   updateAppearance: (appearance: AppearanceSettings) => ipcRenderer.invoke('settings:update-appearance', appearance),
   updateQuickCreateSettings: (quickCreate: QuickCreateSettings) => ipcRenderer.invoke('settings:update-quick-create', quickCreate),
+  updateEditorSettings: (editor: EditorSettings) => ipcRenderer.invoke('settings:update-editor', editor) as Promise<EditorSettings>,
   updatePinnedNotePaths: (paths: string[]) => ipcRenderer.invoke('settings:update-pinned-note-paths', paths) as Promise<string[]>,
   setSidebarCollapsed: (collapsed: boolean) => ipcRenderer.invoke('window:set-sidebar-collapsed', collapsed),
   getWindowState: () => ipcRenderer.invoke('window:get-state'),

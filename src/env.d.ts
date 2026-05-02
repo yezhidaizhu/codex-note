@@ -4,6 +4,7 @@ import type {
   AppSettings,
   AppearanceSettings,
   CopyTextResult,
+  EditorSettings,
   MoveFolderResult,
   NotePayload,
   NoteTreeResult,
@@ -30,6 +31,9 @@ declare global {
       setSearchMode: (mode: 'memory' | 'ripgrep') => Promise<{ mode: 'memory' | 'ripgrep' }>
       readNote: (path: string) => Promise<NotePayload>
       saveNote: (payload: { currentPath?: string | null; parentPath: string | null; name?: string; content: string }) => Promise<SaveNoteResult>
+      saveImageAsset: (payload: { notePath: string; directory: string; fileName: string; mimeType: string; bytes: Uint8Array }) => Promise<{ relativePath: string }>
+      resolveNoteAssetPath: (notePath: string, assetPath: string) => Promise<{ path: string; fileUrl: string }>
+      resolveImageDirectoryPath: (payload: { notePath: string | null; directory: string }) => Promise<{ path: string }>
       deleteNote: (path: string) => Promise<NoteTreeResult>
       createFolder: (parentPath: string | null, name: string) => Promise<NoteTreeResult>
       deleteFolder: (path: string) => Promise<NoteTreeResult>
@@ -38,10 +42,11 @@ declare global {
       renameNote: (path: string, name: string) => Promise<SaveNoteResult>
       renameFolder: (path: string, name: string) => Promise<RenameFolderResult>
       getAbsoluteNotePath: (path: string) => Promise<{ path: string }>
-      openNotesDirectory: () => Promise<OpenPathResult>
+      openDirectoryPath: (path: string) => Promise<OpenPathResult>
       writeClipboardText: (value: string) => Promise<CopyTextResult>
       updateAppearance: (appearance: AppearanceSettings) => Promise<AppearanceSettings>
       updateQuickCreateSettings: (quickCreate: QuickCreateSettings) => Promise<QuickCreateSettings>
+      updateEditorSettings: (editor: EditorSettings) => Promise<EditorSettings>
       updatePinnedNotePaths: (paths: string[]) => Promise<string[]>
       setSidebarCollapsed: (collapsed: boolean) => Promise<void>
       getWindowState: () => Promise<{ isAlwaysOnTop: boolean }>

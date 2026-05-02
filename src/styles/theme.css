@@ -1,0 +1,146 @@
+@theme {
+  --font-sans: "Geist", "IBM Plex Sans", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+}
+
+:root {
+  font-family: var(--font-sans);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  color-scheme: dark;
+  --background: rgba(5, 8, 22, 0.1);
+  --foreground: #f8fafc;
+  --card: #0b1120;
+  --card-foreground: #f8fafc;
+  --popover: #0b1120;
+  --popover-foreground: #f8fafc;
+  --primary: #f97316;
+  --primary-foreground: #fff7ed;
+  --secondary: #151c2c;
+  --secondary-foreground: #e5edf7;
+  --muted: #151c2c;
+  --muted-foreground: #94a3b8;
+  --accent: #1b2436;
+  --accent-foreground: #f8fafc;
+  --destructive: #ef4444;
+  --destructive-foreground: #f8fafc;
+  --border: #373344;
+  --input: #2f3d55;
+  --ring: #fb923c;
+  --window-shell: #2a2a2a;
+  --separator: rgba(255, 255, 255, 0.1);
+  --shell-border: rgba(148, 163, 184, 0.34);
+  --radius: 0.875rem;
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --text-2xs: 0.625rem;
+  --text-xs: 0.75rem;
+  --text-sm: 0.8125rem;
+  --text-md: 0.875rem;
+  --content-area-pad: 1.25rem;
+  --panel-pad: 1.25rem;
+  --editor-pad-x: 1rem;
+  --editor-pad-y: 1rem;
+  --settings-page-pad: 1.25rem;
+  --settings-page-gap: 1.25rem;
+  --settings-section-gap: 1.25rem;
+  --settings-panel-pad: 1rem;
+  --settings-row-gap: 0.875rem;
+  --sidebar-search-pad-x: 0.5rem;
+  --sidebar-search-pad-top: 0.5rem;
+  --sidebar-search-pad-bottom: 0.4rem;
+  --sidebar-toolbar-pad-x: 0.5rem;
+  --sidebar-toolbar-pad-y: 0.4rem;
+  --sidebar-search-input-height: 2rem;
+  --sidebar-footer-pad-x: 0.5rem;
+  --sidebar-footer-pad-y: 0.4rem;
+  --sidebar-footer-stack-gap: 0.4rem;
+  --tree-list-pad-x: 0.5rem;
+  --tree-list-pad-bottom: 0.5rem;
+  --tree-list-gap: 2px;
+  --tree-item-pad-x: 0.5rem;
+  --tree-item-pad-y: 0.4rem;
+  --tree-item-min-height: 2.25rem;
+  --tree-item-icon-size: 1.5rem;
+  --interactive-hover: rgba(249, 115, 22, 0.16);
+  --interactive-hover-strong: rgba(249, 115, 22, 0.24);
+  --interactive-selected: rgba(249, 115, 22, 0.38);
+  --interactive-selected-hover: rgba(249, 115, 22, 0.46);
+  --interactive-icon-surface: rgba(255, 255, 255, 0.05);
+  --interactive-icon-surface-active: rgba(249, 115, 22, 0.3);
+  --sidebar-hover: var(--interactive-hover);
+  --sidebar-hover-strong: var(--interactive-hover-strong);
+  --sidebar-selected-hover: var(--interactive-selected-hover);
+  --sidebar: #070d1b;
+  --editor: #0a101d;
+  --primary-glow: rgba(249, 115, 22, 0.16);
+  --button-shadow: 0 10px 24px rgba(249, 115, 22, 0.24);
+  --grid-color: rgba(255, 255, 255, 0.03);
+  --shadow-soft: rgba(255, 255, 255, 0.04);
+  --shadow-deep: rgba(0, 0, 0, 0.45);
+  --popup-shadow: rgba(0, 0, 0, 0.45);
+  --dialog-shadow: rgba(0, 0, 0, 0.28);
+  --overlay-backdrop: rgba(10, 16, 29, 0.38);
+  --scroll-thumb: rgba(255, 255, 255, 0.14);
+  --scroll-thumb-hover: rgba(255, 255, 255, 0.22);
+  --scroll-track: rgba(255, 255, 255, 0.03);
+  --scroll-thumb-firefox: rgba(255, 255, 255, 0.16);
+  --scrollbar-size: 11px;
+  --tree-item-hover: var(--interactive-hover);
+  --tree-item-selected: var(--interactive-selected);
+  --tree-item-selected-hover: var(--sidebar-selected-hover);
+  --tree-item-icon: var(--interactive-icon-surface);
+  --tree-item-icon-active: var(--interactive-icon-surface-active);
+  --tree-item-chevron-hover: var(--sidebar-hover-strong);
+  --tree-item-guide: color-mix(in srgb, var(--border) 68%, transparent);
+  --tree-indent-step: 10px;
+  --tree-branch-gap: 0.375rem;
+  --tree-guide-offset: 0.75rem;
+  --tree-guide-padding: 0.375rem;
+  --tree-chevron-slot: 1rem;
+}
+
+:root[data-transparent-background='true'] {
+  --background: rgba(0, 0, 0, 0);
+}
+
+:root[data-transparent-background='true'][data-appearance-mode='dark'] {
+  --card: rgba(11, 17, 32, 0.64);
+  --secondary: rgba(21, 28, 44, 0.56);
+  --muted: rgba(21, 28, 44, 0.4);
+  --accent: rgba(27, 36, 54, 0.52);
+  --editor: rgba(10, 16, 29, 0.26);
+  --shadow-soft: rgba(255, 255, 255, 0.06);
+  --shadow-deep: rgba(0, 0, 0, 0.32);
+  --popup-shadow: rgba(0, 0, 0, 0.3);
+  --dialog-shadow: rgba(0, 0, 0, 0.26);
+}
+
+:root[data-transparent-background='true'][data-appearance-mode='light'] {
+  --background: rgba(255, 255, 255, 0.08);
+  --foreground: #0f172a;
+  --muted-foreground: #475569;
+  --card: rgba(255, 255, 255, 0.74);
+  --secondary: rgba(255, 255, 255, 0.66);
+  --muted: rgba(248, 250, 252, 0.58);
+  --accent: rgba(255, 255, 255, 0.62);
+  --editor: rgba(255, 255, 255, 0.38);
+  --border: rgba(148, 163, 184, 0.42);
+  --input: rgba(255, 255, 255, 0.9);
+  --separator: rgba(71, 85, 105, 0.16);
+  --scroll-thumb: rgba(71, 85, 105, 0.18);
+  --scroll-thumb-hover: rgba(71, 85, 105, 0.28);
+  --scroll-track: rgba(71, 85, 105, 0.08);
+  --scroll-thumb-firefox: rgba(71, 85, 105, 0.22);
+  --shadow-soft: rgba(255, 255, 255, 0.2);
+  --shadow-deep: rgba(15, 23, 42, 0.08);
+  --popup-shadow: rgba(15, 23, 42, 0.1);
+  --dialog-shadow: rgba(15, 23, 42, 0.08);
+  --shell-border: rgba(255, 255, 255, 0.58);
+  --overlay-backdrop: rgba(148, 163, 184, 0.12);
+}

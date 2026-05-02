@@ -8,8 +8,8 @@ import EntityNameDialog from '@/components/notes/entity-name-dialog.vue'
 import NoteContextMenu from '@/components/notes/note-context-menu.vue'
 import TitleBar from '@/components/app/titlebar.vue'
 import NotesSidebar from '@/components/notes/notes-sidebar.vue'
+import NoteMarkdownEditor from '@/components/editor/note-markdown-editor.vue'
 import Button from '@/components/ui/button.vue'
-import Textarea from '@/components/ui/textarea.vue'
 import { useIndexPageActions } from '@/composables/use-index-page-actions'
 import { useNoteEditor } from '@/composables/use-note-editor'
 import { usePanelResize } from '@/composables/use-panel-resize'
@@ -159,15 +159,7 @@ onBeforeUnmount(() => {
           </div>
         </section>
 
-        <section v-else-if="activeNote" class="editor-surface flex min-h-0 flex-1 flex-col overflow-hidden">
-          <Textarea
-            :ref="noteEditor.bindEditorTextarea"
-            :value="activeNote.content"
-            class="scrollbar-thin h-full min-h-0 flex-1 resize-none rounded-none border-0 bg-transparent px-[var(--editor-pad-x)] py-[var(--editor-pad-y)] text-[15px] leading-8 shadow-none focus-visible:ring-0 placeholder:text-[color-mix(in_srgb,var(--muted-foreground)_52%,transparent)]"
-            placeholder="写点什么"
-            @input="noteEditor.onEditorInput"
-          />
-        </section>
+        <NoteMarkdownEditor v-else-if="activeNote" />
 
         <section v-else class="flex min-h-0 flex-1 items-center justify-center p-[var(--content-area-pad)]">
           <div

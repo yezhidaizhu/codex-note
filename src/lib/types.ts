@@ -21,6 +21,23 @@ export type QuickCreateSettings = {
   namingRule: 'default' | 'datetime'
 }
 
+export type EditorFeatureKey =
+  | 'heading'
+  | 'bold'
+  | 'italic'
+  | 'blockquote'
+  | 'bulletList'
+  | 'orderedList'
+  | 'taskList'
+  | 'codeBlock'
+  | 'link'
+  | 'image'
+
+export type EditorSettings = {
+  enabledFeatures: EditorFeatureKey[]
+  imageDirectory: string
+}
+
 export type OpenPathResult = {
   ok: boolean
   error?: string
@@ -62,6 +79,7 @@ export type AppSettings = {
   folders: FolderListItem[]
   appearance: AppearanceSettings
   quickCreate: QuickCreateSettings
+  editor: EditorSettings
   pinnedNotePaths: string[]
 }
 

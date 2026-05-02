@@ -1,0 +1,84 @@
+* {
+  box-sizing: border-box;
+  border-color: var(--border);
+  scrollbar-width: thin;
+  scrollbar-color: var(--scroll-thumb-firefox) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: var(--scrollbar-size);
+  height: var(--scrollbar-size);
+}
+
+*::-webkit-scrollbar-thumb {
+  min-height: 36px;
+  background: var(--scroll-thumb);
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background-clip: padding-box;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--scroll-thumb-hover);
+  background-clip: padding-box;
+}
+
+*::-webkit-scrollbar-track {
+  background: var(--scroll-track);
+  border-radius: 999px;
+}
+
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  height: 100vh;
+  overflow: hidden;
+  background: var(--window-shell);
+  color: var(--foreground);
+  background-color: var(--window-shell);
+}
+
+::selection {
+  background: color-mix(in srgb, var(--primary) 35%, transparent);
+  color: var(--foreground);
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+#app {
+  height: 100%;
+}
+
+:root[data-transparent-background='true'],
+:root[data-transparent-background='true'] body,
+:root[data-transparent-background='true'] #app {
+  background: transparent;
+  background-color: transparent;
+}
+
+:root[data-transparent-background='true'][data-appearance-mode='light'] input,
+:root[data-transparent-background='true'][data-appearance-mode='light'] textarea {
+  color: var(--foreground);
+}
+
+:root[data-transparent-background='true'][data-appearance-mode='light'] input::placeholder,
+:root[data-transparent-background='true'][data-appearance-mode='light'] textarea::placeholder {
+  color: color-mix(in srgb, var(--muted-foreground) 82%, transparent);
+}

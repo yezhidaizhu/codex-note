@@ -243,12 +243,31 @@ function onQuickCreateTargetPathKeydown(event: KeyboardEvent) {
               <span class="text-ui-sm text-[var(--foreground)]">
                 {{ props.quickCreate.writeClipboardOnCreate ? '已开启，创建时直接写入。' : '已关闭，创建时保持空白。' }}
               </span>
-              <input
-                :checked="props.quickCreate.writeClipboardOnCreate"
-                type="checkbox"
-                class="h-4 w-4 cursor-pointer accent-[var(--primary)]"
-                @change="updateQuickCreateWriteClipboardOnCreate"
-              >
+              <span class="relative flex h-4 w-4 shrink-0 items-center justify-center">
+                <input
+                  :checked="props.quickCreate.writeClipboardOnCreate"
+                  type="checkbox"
+                  class="peer absolute inset-0 z-10 cursor-pointer opacity-0"
+                  @change="updateQuickCreateWriteClipboardOnCreate"
+                >
+                <span
+                  class="h-4 w-4 rounded-[4px] border border-red-500 bg-transparent transition-colors peer-checked:border-[var(--primary)] peer-checked:bg-[var(--primary)]"
+                />
+                <svg
+                  viewBox="0 0 16 16"
+                  class="pointer-events-none absolute h-3.5 w-3.5 text-white opacity-0 transition-opacity peer-checked:opacity-100"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M4 8.2 6.6 10.8 12 5.4"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2.35"
+                  />
+                </svg>
+              </span>
             </label>
           </div>
         </div>

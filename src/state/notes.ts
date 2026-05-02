@@ -2,6 +2,7 @@ import { computed, ref, watch } from 'vue'
 import { defineStore } from 'pinia'
 import dayjs from 'dayjs'
 import type {
+  EditorSettings,
   FolderListItem,
   MoveFolderResult,
   NoteListItem as NoteListItemData,
@@ -411,9 +412,9 @@ function createNote(parentPath: string | null = null) {
     editorFocusRequestId.value += 1
   }
 
-  async function saveNote(noteToSave = activeNote.value) {
+  async function saveNote(noteToSave = activeNote.value, options: { allowEmptyDraft?: boolean } = {}) {
     if (!noteToSave || !notesDir.value) return
-    if (!noteToSave.path && !noteToSave.content.trim()) return
+    if (!options.allowEmptyDraft && !noteToSave.path && !noteToSave.content.trim()) return
 
     if (saveInFlight) {
       queuedSave = noteToSave
@@ -460,6 +461,41 @@ function createNote(parentPath: string | null = null) {
         if (!alreadySaved) void saveNote(nextQueued)
       }
     }
+  }
+
+  async function ensureNoteHasPath() {
+    const current = activeNote.value
+    if (!current || current.path) {
+      return current?.path ?? null
+    }
+
+    await saveNote(
+      {
+        path: current.path,
+        parentPath: current.parentPath,
+        nameSeed: current.nameSeed,
+        content: current.content,
+        updatedAt: current.updatedAt,
+      },
+      { allowEmptyDraft: true },
+    )
+
+    return activeNote.value?.path ?? null
+  }
+
+  async function saveImageAsset(file: File, editorSettings: EditorSettings) {
+    const notePath = await ensureNoteHasPath()
+    if (!notePath) {
+      throw new Error('请先创建笔记后再插入图片。')
+    }
+
+    return getNotesApi().saveImageAsset({
+      notePath,
+      directory: editorSettings.imageDirectory,
+      fileName: file.name || 'image.png',
+      mimeType: file.type || 'image/png',
+      bytes: new Uint8Array(await file.arrayBuffer()),
+    })
   }
 
   async function deleteNotesByPaths(paths: string[]) {
@@ -670,13 +706,29 @@ function createNote(parentPath: string | null = null) {
 
   async function openNotesDirectory() {
     try {
-      const result = await getNotesApi().openNotesDirectory()
+      if (!notesDir.value) {
+        throw new Error('当前还没有连接笔记目录。')
+      }
+      const result = await getNotesApi().openDirectoryPath(notesDir.value)
       if (!result.ok) {
         throw new Error(result.error || '打开笔记目录失败。')
       }
       errorMessage.value = ''
     } catch (error) {
       errorMessage.value = error instanceof Error ? error.message : '打开笔记目录失败。'
+    }
+  }
+
+  async function openImageDirectory(notePath: string | null, directory: string) {
+    try {
+      const { path } = await getNotesApi().resolveImageDirectoryPath({ notePath, directory })
+      const result = await getNotesApi().openDirectoryPath(path)
+      if (!result.ok) {
+        throw new Error(result.error || '打开图片目录失败。')
+      }
+      errorMessage.value = ''
+    } catch (error) {
+      errorMessage.value = error instanceof Error ? error.message : '打开图片目录失败。'
     }
   }
 
@@ -801,6 +853,8 @@ function createNote(parentPath: string | null = null) {
     createNote,
     createNoteWithContent,
     saveNote,
+    ensureNoteHasPath,
+    saveImageAsset,
     deleteNotesByPaths,
     createFolder,
     deleteFolder,
@@ -815,6 +869,7 @@ function createNote(parentPath: string | null = null) {
     countNotesInFolder,
     updateQuickCreateSettings,
     openNotesDirectory,
+    openImageDirectory,
     copyRelativeNotePath,
     copyAbsoluteNotePath,
     togglePinnedNote,
