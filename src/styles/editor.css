@@ -2,25 +2,31 @@
   min-height: 100%;
 }
 
-.pm-placeholder {
-  position: absolute;
-  inset-inline-start: var(--editor-pad-x);
-  top: 0.25rem;
-  color: var(--muted-foreground);
-  font-size: var(--text-sm);
-  font-family: Monaco, Menlo, Ubuntu Mono, monospace;
-  pointer-events: none;
-  user-select: none;
-  white-space: nowrap;
-}
-
 .pm-editor {
+  display: flex;
+  flex-direction: column;
+  position: relative;
   min-height: 100%;
   color: var(--foreground);
   font-size: var(--text-sm);
   font-family: Monaco, Menlo, Ubuntu Mono, monospace;
   line-height: 1.58;
   white-space: pre-wrap;
+}
+
+.pm-editor:has(.ProseMirror > p:only-child:empty)::before,
+.pm-editor:has(.ProseMirror > p:only-child > .ProseMirror-trailingBreak:only-child)::before {
+  content: attr(data-placeholder);
+  position: absolute;
+  inset-inline-start: 0;
+  top: 0;
+  color: var(--muted-foreground);
+  font-size: inherit;
+  font-family: inherit;
+  line-height: inherit;
+  pointer-events: none;
+  user-select: none;
+  white-space: nowrap;
 }
 
 .pm-editor:focus {
@@ -118,6 +124,7 @@
 }
 
 .pm-editor .ProseMirror {
+  flex: 1;
   min-height: 100%;
   outline: none;
 }

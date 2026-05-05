@@ -404,6 +404,69 @@ function codeBlockInputRule(enabledFeatures: Set<EditorFeatureKey>) {
   return [textblockTypeInputRule(/^```([A-Za-z0-9_-]+)?\s$/, prosemirrorSchema.nodes.code_block, (match) => ({ params: match[1] || '' }))]
 }
 
+function codeBlockEnterCommand(enabledFeatures: Set<EditorFeatureKey>): Command {
+  return (state: EditorState, dispatch?: (tr: Transaction) => void) => {
+    if (!enabledFeatures.has('codeBlock')) return false
+
+    const { $from, empty } = state.selection
+    if (!empty) return false
+    if ($from.parent.type !== prosemirrorSchema.nodes.paragraph) return false
+
+    const text = $from.parent.textContent
+    const match = text.match(/^```([A-Za-z0-9_-]+)?$/)
+    if (!match) return false
+    if ($from.parentOffset !== text.length) return false
+
+    const start = $from.start()
+    const end = start + text.length
+    const attrs = { params: match[1] || '' }
+
+    if (!dispatch) return true
+
+    dispatch(
+      state.tr
+        .setBlockType(start, start, prosemirrorSchema.nodes.code_block, attrs)
+        .delete(start, end)
+        .scrollIntoView(),
+    )
+    return true
+  }
+}
+
+function codeBlockExitFenceEnterCommand(enabledFeatures: Set<EditorFeatureKey>): Command {
+  return (state: EditorState, dispatch?: (tr: Transaction) => void) => {
+    if (!enabledFeatures.has('codeBlock')) return false
+
+    const { $from, empty } = state.selection
+    if (!empty) return false
+    if ($from.parent.type !== prosemirrorSchema.nodes.code_block) return false
+
+    const text = $from.parent.textContent
+    const lineStart = text.lastIndexOf('\n', Math.max(0, $from.parentOffset - 1)) + 1
+    const nextLineBreak = text.indexOf('\n', $from.parentOffset)
+    const lineEnd = nextLineBreak === -1 ? text.length : nextLineBreak
+    const lineText = text.slice(lineStart, lineEnd)
+
+    if (lineText !== '```') return false
+    if ($from.parentOffset !== lineEnd) return false
+    if (!dispatch) return true
+
+    const codeBlockPos = $from.before()
+    const deleteFrom = $from.start() + (lineStart > 0 ? lineStart - 1 : lineStart)
+    const deleteTo = $from.start() + lineEnd
+
+    let tr = state.tr.delete(deleteFrom, deleteTo)
+    const updatedCodeBlock = tr.doc.nodeAt(codeBlockPos)
+    if (!updatedCodeBlock) return false
+
+    const insertPos = codeBlockPos + updatedCodeBlock.nodeSize
+    tr = tr.insert(insertPos, prosemirrorSchema.nodes.paragraph.create())
+    tr = tr.setSelection(TextSelection.create(tr.doc, insertPos + 1))
+    dispatch(tr.scrollIntoView())
+    return true
+  }
+}
+
 export function createInputRules(enabledFeatures: Set<EditorFeatureKey>) {
   const rules = []
 
@@ -431,13 +494,20 @@ export function createInputRules(enabledFeatures: Set<EditorFeatureKey>) {
   return inputRules({ rules })
 }
 
-function enterKeyCommand(): Command {
+function enterKeyCommand(enabledFeatures: Set<EditorFeatureKey>): Command {
   return (state: EditorState, dispatch?: (tr: Transaction) => void) => {
     const list = findParentList(state)
     if (list) {
       return splitListItem(prosemirrorSchema.nodes.list_item)(state, dispatch)
     }
-    return chainCommands(exitCode, createParagraphNear, liftEmptyBlock, splitBlock)(state, dispatch)
+    return chainCommands(
+      codeBlockExitFenceEnterCommand(enabledFeatures),
+      codeBlockEnterCommand(enabledFeatures),
+      exitCode,
+      createParagraphNear,
+      liftEmptyBlock,
+      splitBlock,
+    )(state, dispatch)
   }
 }
 
@@ -482,7 +552,7 @@ export function createEditorState({
     keymap({
       'Mod-z': undo,
       'Mod-y': redo,
-      Enter: enterKeyCommand(),
+      Enter: enterKeyCommand(enabledFeatures),
       Tab: sinkListItem(prosemirrorSchema.nodes.list_item),
       'Shift-Tab': liftListItem(prosemirrorSchema.nodes.list_item),
     }),
@@ -571,6 +641,7 @@ export function setEditorViewMarkdown(view: EditorView, markdown: string, enable
 export function focusEditorView(view: EditorView, placeAtEnd = false) {
   view.focus()
   if (!placeAtEnd) return
+  if (isDocumentVisuallyEmpty(view.state.doc)) return
   const end = view.state.doc.content.size
   const tr = view.state.tr.setSelection(TextSelection.create(view.state.doc, end))
   view.dispatch(tr)

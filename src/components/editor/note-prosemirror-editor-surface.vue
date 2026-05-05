@@ -2,10 +2,12 @@
 import { storeToRefs } from 'pinia'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import {
+  commandsForFeatures,
   createEditorView,
   focusEditorView,
   isDocumentVisuallyEmpty,
   restoreEditorViewSelection,
+  runToolbarCommand,
   serializeMarkdown,
   setEditorViewMarkdown,
   prosemirrorSchema,
@@ -22,7 +24,6 @@ const { settings, enabledFeatureSet } = storeToRefs(editorSettingsStore)
 
 const shellRef = ref<HTMLElement | null>(null)
 const hostRef = ref<HTMLElement | null>(null)
-const showPlaceholder = ref(false)
 
 let view: EditorView | null = null
 let isApplyingExternalContent = false
@@ -83,10 +84,6 @@ function currentMarkdown() {
   return serializeMarkdown(view.state.doc)
 }
 
-function updatePlaceholderState() {
-  showPlaceholder.value = !view || isDocumentVisuallyEmpty(view.state.doc)
-}
-
 function captureEditorSelectionSnapshot() {
   if (!view) {
     return {
@@ -121,7 +118,6 @@ function rebuildEditorView() {
       if (isApplyingExternalContent) return
       lastAppliedMarkdown = markdown
       applyStoreMarkdown(markdown)
-      updatePlaceholderState()
       void nextTick(() => syncRenderedImageSources())
     },
     onPasteImages: async (files) => {
@@ -145,14 +141,12 @@ function rebuildEditorView() {
       nextView.dispatch(tr.scrollIntoView())
       lastAppliedMarkdown = currentMarkdown()
       applyStoreMarkdown(lastAppliedMarkdown)
-      updatePlaceholderState()
       await nextTick()
       await syncRenderedImageSources()
     },
   })
 
   lastAppliedMarkdown = currentMarkdown()
-  updatePlaceholderState()
   void nextTick(async () => {
     if (view && previousSelection.focused) {
       restoreEditorViewSelection(view, previousSelection.anchor, previousSelection.head)
@@ -169,7 +163,6 @@ function setEditorMarkdown(markdown: string) {
   setEditorViewMarkdown(view, markdown, enabledFeatureSet.value)
   lastAppliedMarkdown = currentMarkdown()
   isApplyingExternalContent = false
-  updatePlaceholderState()
   void nextTick(() => syncRenderedImageSources())
 }
 
@@ -178,15 +171,12 @@ function focusEditor(placeAtEnd = false) {
   focusEditorView(view, placeAtEnd)
 }
 
-function handleEditorBlankPointerDown(event: MouseEvent) {
+function handleEditorBlankClick(event: MouseEvent) {
   if (!view) return
   const target = event.target
   if (!(target instanceof HTMLElement)) return
-  const proseMirrorRoot = target.closest('.ProseMirror')
   const clickedShell = target === shellRef.value || target === hostRef.value
-  const clickedEditorBlank = Boolean(proseMirrorRoot) && target === proseMirrorRoot
-  if (!clickedShell && !clickedEditorBlank) return
-  event.preventDefault()
+  if (!clickedShell) return
   focusEditor(true)
 }
 
@@ -197,6 +187,25 @@ onMounted(() => {
 onBeforeUnmount(() => {
   view?.destroy()
   view = null
+})
+
+function runCommand(command: ReturnType<typeof commandsForFeatures>[keyof ReturnType<typeof commandsForFeatures>]) {
+  if (!view || !command) return false
+  return runToolbarCommand(view, command)
+}
+
+const featureCommands = computed(() => commandsForFeatures(enabledFeatureSet.value))
+
+defineExpose({
+  focusEditor,
+  runBlockquoteCommand: () => runCommand(featureCommands.value.toggleBlockquote),
+  runBoldCommand: () => runCommand(featureCommands.value.toggleBold),
+  runBulletListCommand: () => runCommand(featureCommands.value.toggleBulletList),
+  runCodeBlockCommand: () => runCommand(featureCommands.value.toggleCodeBlock),
+  runHeadingCommand: () => runCommand(featureCommands.value.toggleHeading),
+  runItalicCommand: () => runCommand(featureCommands.value.toggleItalic),
+  runOrderedListCommand: () => runCommand(featureCommands.value.toggleOrderedList),
+  runTaskListCommand: () => runCommand(featureCommands.value.toggleTaskList),
 })
 
 watch(
@@ -232,10 +241,13 @@ watch(
     <div
       ref="shellRef"
       class="pm-host relative min-h-0 flex-1 overflow-y-auto px-[var(--editor-pad-x)] py-1"
-      @mousedown="handleEditorBlankPointerDown"
+      @click="handleEditorBlankClick"
     >
-      <div v-if="showPlaceholder" class="pm-placeholder">开始写点什么，或粘贴一段 Markdown…</div>
-      <div ref="hostRef" class="pm-editor min-h-full" />
+      <div
+        ref="hostRef"
+        class="pm-editor min-h-full"
+        data-placeholder="开始写点什么，或粘贴一段 Markdown…"
+      />
     </div>
   </section>
 </template>
