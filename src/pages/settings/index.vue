@@ -6,7 +6,6 @@ import { useRouter } from 'vue-router'
 import Button from '@/components/ui/button.vue'
 import ConfirmDialog from '@/components/confirm-dialog.vue'
 import EntityNameDialog from '@/components/notes/entity-name-dialog.vue'
-import EditorSettingsSection from '@/components/settings/editor-settings-section.vue'
 import AppearanceSettingsSection from '@/components/settings/appearance-settings-section.vue'
 import AutomationSettingsSection from '@/components/settings/automation-settings-section.vue'
 import GeneralSettingsSection from '@/components/settings/general-settings-section.vue'
@@ -31,7 +30,6 @@ const { settings: editorSettings } = storeToRefs(editorSettingsStore)
 
 const sections = [
   { key: 'general', label: '通用' },
-  { key: 'editor', label: '编辑器' },
   { key: 'appearance', label: '外观' },
   { key: 'automation', label: '快速创建' },
 ] as const
@@ -243,14 +241,6 @@ watch(
             </p>
           </template>
 
-          <template v-else-if="activeSection.key === 'editor'">
-            <p class="text-ui-xs uppercase tracking-[0.24em] text-[var(--muted-foreground)]">Editor</p>
-            <h1 class="mt-[var(--space-2)] text-3xl font-semibold tracking-tight">编辑器设置</h1>
-            <p class="text-ui-md mt-[var(--space-3)] max-w-2xl leading-7 text-[var(--muted-foreground)]">
-              控制 Markdown 编辑器暴露出来的能力，以及图片粘贴时的隐藏附件目录。
-            </p>
-          </template>
-
           <template v-else-if="activeSection.key === 'automation'">
             <p class="text-ui-xs uppercase tracking-[0.24em] text-[var(--muted-foreground)]">Quick Create</p>
             <h1 class="mt-[var(--space-2)] text-3xl font-semibold tracking-tight">快速创建设置</h1>
@@ -277,17 +267,6 @@ watch(
           :has-selected-note="hasSelectedNote"
           @choose-directory="notesStore.chooseDirectory"
           @open-directory="notesStore.openNotesDirectory"
-        />
-
-        <EditorSettingsSection
-          v-else-if="activeSection.key === 'editor'"
-          :editor-settings="editorSettings"
-          :notes-dir="notesDir"
-          :resolved-image-directory-path="resolvedImageDirectoryPath"
-          @toggle-feature="toggleEditorFeature"
-          @open-image-directory="openEditorImageDirectory"
-          @cleanup-unused-images="openCleanupUnusedImagesDialog"
-          @request-edit-image-directory="openEditorImageDirectoryDialog"
         />
 
         <AutomationSettingsSection

@@ -59,7 +59,7 @@
 - 空文档时必须显示 placeholder。
 - placeholder 文案：
 
-`开始写点什么，或粘贴一段 Markdown…`
+`开始写点什么`
 
 - 输入开始后 placeholder 立即消失。
 - placeholder 不能阻挡点击、选择、拖拽、输入。
