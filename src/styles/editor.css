@@ -1,147 +1,285 @@
-.pm-host {
-  min-height: 100%;
-}
+@import "@milkdown/crepe/theme/common/style.css";
 
-.pm-editor {
-  display: flex;
-  flex-direction: column;
+.milkdown-host {
   position: relative;
   min-height: 100%;
-  color: var(--foreground);
-  font-size: var(--text-sm);
-  font-family: Monaco, Menlo, Ubuntu Mono, monospace;
-  line-height: 1.58;
-  white-space: pre-wrap;
 }
 
-.pm-editor:has(.ProseMirror > p:only-child:empty)::before,
-.pm-editor:has(.ProseMirror > p:only-child > .ProseMirror-trailingBreak:only-child)::before {
-  content: attr(data-placeholder);
-  position: absolute;
-  inset-inline-start: 0;
+.milkdown-host .milkdown {
+  display: flex;
+  min-height: 100%;
+  flex-direction: column;
+  min-height: 100%;
+  color: var(--foreground);
+  background: transparent;
+  --crepe-color-background: transparent;
+  --crepe-color-on-background: var(--foreground);
+  --crepe-color-surface: color-mix(in srgb, var(--card) 86%, transparent);
+  --crepe-color-surface-low: color-mix(in srgb, var(--card) 72%, transparent);
+  --crepe-color-on-surface: var(--foreground);
+  --crepe-color-on-surface-variant: color-mix(in srgb, var(--foreground) 74%, var(--muted-foreground));
+  --crepe-color-outline: color-mix(in srgb, var(--border) 90%, transparent);
+  --crepe-color-primary: var(--primary);
+  --crepe-color-secondary: color-mix(in srgb, var(--accent) 82%, transparent);
+  --crepe-color-on-secondary: var(--foreground);
+  --crepe-color-inverse: color-mix(in srgb, var(--foreground) 88%, black);
+  --crepe-color-on-inverse: var(--card);
+  --crepe-color-inline-code: color-mix(in srgb, var(--primary) 88%, var(--foreground));
+  --crepe-color-error: var(--destructive);
+  --crepe-color-hover: color-mix(in srgb, var(--accent) 88%, transparent);
+  --crepe-color-selected: color-mix(in srgb, var(--primary) 26%, transparent);
+  --crepe-color-inline-area: color-mix(in srgb, var(--card) 92%, white 4%);
+  --crepe-font-title: var(--font-sans, "Geist", "IBM Plex Sans", "PingFang SC", sans-serif);
+  --crepe-font-default: var(--font-sans, "Geist", "IBM Plex Sans", "PingFang SC", sans-serif);
+  --crepe-font-code: "JetBrains Mono", "SFMono-Regular", "SF Mono", Consolas, monospace;
+  --crepe-shadow-1:
+    0 0 0 1px color-mix(in srgb, var(--border) 60%, transparent),
+    0 16px 34px color-mix(in srgb, var(--shadow-deep) 62%, transparent);
+  --crepe-shadow-2:
+    0 0 0 1px color-mix(in srgb, var(--border) 70%, transparent),
+    0 24px 48px color-mix(in srgb, var(--shadow-deep) 74%, transparent);
+}
+
+.milkdown-host .milkdown *:focus {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.milkdown-host .editor {
+  min-height: 100%;
+}
+
+.milkdown-host .milkdown .ProseMirror {
+  flex: 1;
+  display: block;
+  min-height: 100%;
+  padding: 0 !important;
+  color: var(--foreground);
+  background: transparent;
+  caret-color: var(--foreground);
+  font-size: var(--text-sm);
+  font-family: var(--crepe-font-default);
+  line-height: 1.56;
+  outline: none !important;
+}
+
+.milkdown-host .milkdown .ProseMirror-focused {
+  outline: none !important;
+}
+
+.milkdown-host .milkdown .ProseMirror .crepe-placeholder {
+  position: relative;
+}
+
+.milkdown-host .milkdown .crepe-placeholder::before {
+  left: 0;
   top: 0;
-  color: var(--muted-foreground);
+  color: var(--muted-foreground) !important;
+  font-size: inherit !important;
+  font-family: inherit !important;
+  line-height: inherit !important;
+  white-space: nowrap !important;
+}
+
+.milkdown-host .milkdown .ProseMirror > * {
+  margin: 0;
+}
+
+.milkdown-host .milkdown .ProseMirror > * + * {
+  margin-top: 0.35rem;
+}
+
+.milkdown-host .milkdown .ProseMirror p {
   font-size: inherit;
   font-family: inherit;
   line-height: inherit;
-  pointer-events: none;
-  user-select: none;
-  white-space: nowrap;
+  padding: 0;
 }
 
-.pm-editor:focus {
-  outline: none;
+.milkdown-host .milkdown .ProseMirror li,
+.milkdown-host .milkdown .ProseMirror blockquote,
+.milkdown-host .milkdown .milkdown-image-block > .caption-input,
+.milkdown-host .milkdown .milkdown-image-inline .empty-image-inline,
+.milkdown-host .milkdown .milkdown-image-block > .image-edit {
+  font-size: var(--text-sm);
+  line-height: inherit;
+  font-family: var(--crepe-font-default);
 }
 
-.pm-editor > * {
-  margin: 0;
-}
-
-.pm-editor ul,
-.pm-editor ol {
-  margin: 0;
-  padding-left: 1.5rem;
-}
-
-.pm-editor ul {
-  list-style: disc;
-}
-
-.pm-editor ol {
-  list-style: decimal;
-}
-
-.pm-editor h1,
-.pm-editor h2,
-.pm-editor h3 {
+.milkdown-host .milkdown .ProseMirror h1,
+.milkdown-host .milkdown .ProseMirror h2,
+.milkdown-host .milkdown .ProseMirror h3,
+.milkdown-host .milkdown .ProseMirror h4,
+.milkdown-host .milkdown .ProseMirror h5,
+.milkdown-host .milkdown .ProseMirror h6 {
+  color: var(--foreground);
+  font-family: var(--crepe-font-title);
   font-weight: 650;
   letter-spacing: -0.02em;
 }
 
-.pm-editor h1 {
+.milkdown-host .milkdown .ProseMirror h1 {
   font-size: 1.45rem;
+  line-height: 1.35;
+  margin-top: 0.8rem;
 }
 
-.pm-editor h2 {
+.milkdown-host .milkdown .ProseMirror h2 {
   font-size: 1.2rem;
+  line-height: 1.4;
+  margin-top: 0.65rem;
 }
 
-.pm-editor h3 {
+.milkdown-host .milkdown .ProseMirror h3 {
   font-size: 1.02rem;
+  line-height: 1.45;
+  margin-top: 0.55rem;
 }
 
-.pm-editor blockquote {
-  border-left: 3px solid color-mix(in srgb, var(--primary) 60%, transparent);
-  padding-left: 0.85rem;
-  color: color-mix(in srgb, var(--foreground) 78%, var(--muted-foreground));
+.milkdown-host .milkdown .ProseMirror h4,
+.milkdown-host .milkdown .ProseMirror h5,
+.milkdown-host .milkdown .ProseMirror h6 {
+  font-size: 0.92rem;
+  line-height: 1.5;
+  margin-top: 0.45rem;
 }
 
-.pm-editor pre {
-  overflow-x: auto;
-  border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
-  border-radius: calc(var(--radius) - 0.1rem);
-  background: color-mix(in srgb, var(--card) 82%, transparent);
-  padding: 0.85rem 1rem;
-  line-height: 1.52;
-}
-
-.pm-editor code {
-  font-family: "JetBrains Mono", "SFMono-Regular", "SF Mono", Consolas, monospace;
-  font-size: 0.92em;
-}
-
-.pm-editor a {
+.milkdown-host .milkdown .ProseMirror a {
   color: var(--primary);
   text-decoration: underline;
   text-underline-offset: 3px;
 }
 
-.pm-editor img,
-.pm-editor-image {
-  display: block;
-  max-width: 100%;
+.milkdown-host .milkdown .ProseMirror code {
+  border: 1px solid color-mix(in srgb, var(--border) 78%, transparent);
+  border-radius: 0.35rem;
+  background: color-mix(in srgb, var(--card) 82%, white 3%);
+  color: color-mix(in srgb, var(--primary) 86%, var(--foreground));
+  font-family: var(--crepe-font-code);
+  font-size: 0.92em;
+  padding: 0.05rem 0.28rem;
+}
+
+.milkdown-host .milkdown .ProseMirror pre,
+.milkdown-host .milkdown .milkdown-code-block {
+  margin: 0.45rem 0;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
   border-radius: calc(var(--radius) - 0.1rem);
+  background: color-mix(in srgb, var(--card) 82%, transparent);
 }
 
-.pm-editor ul[data-type='taskList'] {
-  list-style: none;
-  padding-left: 0.4rem;
+.milkdown-host .milkdown .ProseMirror pre {
+  padding: 0.85rem 1rem;
+  line-height: 1.4;
 }
 
-.pm-editor ul[data-type='taskList'] li {
+.milkdown-host .milkdown .ProseMirror pre code {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  padding: 0;
+}
+
+.milkdown-host .milkdown .milkdown-code-block {
+  padding: 0.75rem 0.95rem 0.95rem;
+}
+
+.milkdown-host .milkdown .milkdown-code-block .cm-editor,
+.milkdown-host .milkdown .milkdown-code-block .cm-gutters {
+  background: transparent;
+}
+
+.milkdown-host .milkdown .milkdown-code-block .cm-panel,
+.milkdown-host .milkdown .milkdown-code-block .tools .language-button,
+.milkdown-host .milkdown .milkdown-code-block .tools .tools-button-group button,
+.milkdown-host .milkdown .milkdown-code-block .cm-panel > button,
+.milkdown-host .milkdown .milkdown-code-block .cm-panel input {
+  border-color: color-mix(in srgb, var(--border) 78%, transparent);
+  background: color-mix(in srgb, var(--accent) 70%, transparent);
+  color: var(--foreground);
+}
+
+.milkdown-host .milkdown .milkdown-code-block .tools .language-button:hover,
+.milkdown-host .milkdown .milkdown-code-block .tools .tools-button-group button:hover,
+.milkdown-host .milkdown .milkdown-code-block .cm-panel > button:hover {
+  background: color-mix(in srgb, var(--accent) 88%, transparent);
+}
+
+.milkdown-host .milkdown .ProseMirror blockquote {
+  margin: 0.35rem 0;
+  padding-left: 0.9rem;
+  color: color-mix(in srgb, var(--foreground) 76%, var(--muted-foreground));
+}
+
+.milkdown-host .milkdown .ProseMirror blockquote::before {
+  width: 3px;
+  background: color-mix(in srgb, var(--primary) 60%, transparent);
+}
+
+.milkdown-host .milkdown .ProseMirror hr {
+  background-color: color-mix(in srgb, var(--border) 58%, transparent);
+}
+
+.milkdown-host .milkdown .milkdown-list-item-block {
+  display: block;
+  margin: 0.25rem 0;
+}
+
+.milkdown-host .milkdown .milkdown-list-item-block > .list-item {
   display: flex;
   align-items: flex-start;
-  gap: 0.55rem;
+  gap: 0.25rem;
 }
 
-.pm-editor ul[data-type='taskList'] li > label {
-  margin-top: 0.2rem;
-}
-
-.pm-editor ul[data-type='taskList'] li > div {
+.milkdown-host .milkdown .milkdown-list-item-block > .list-item > .children {
   flex: 1;
   min-width: 0;
 }
 
-.pm-editor .ProseMirror {
-  flex: 1;
-  min-height: 100%;
-  outline: none;
+.milkdown-host .milkdown .milkdown-list-item-block li .label-wrapper {
+  width: 1.2rem;
+  min-width: 1.2rem;
+  height: auto;
+  margin-right: 0;
+  color: var(--muted-foreground);
+  align-items: flex-start;
 }
 
-.pm-editor .ProseMirror-focused {
-  outline: none;
+.milkdown-host .milkdown .milkdown-list-item-block li .label-wrapper svg {
+  fill: currentColor;
 }
 
-.pm-editor .ProseMirror > * {
-  margin: 0;
+.milkdown-host .milkdown .milkdown-list-item-block li .label-wrapper .label {
+  height: auto;
+  padding: 0;
+  line-height: 1.56;
 }
 
-.pm-editor .ProseMirror > * + * {
-  margin-top: 0;
+.milkdown-host .milkdown .milkdown-list-item-block :is(ul, ol) {
+  margin-top: 0.15rem;
+  padding-left: 0.7rem;
 }
 
-.pm-editor .ProseMirror > :is(blockquote, pre, ul, ol, h1, h2, h3) + *,
-.pm-editor .ProseMirror > * + :is(blockquote, pre, ul, ol, h1, h2, h3) {
-  margin-top: 0.35rem;
+.milkdown-host .milkdown .milkdown-image-inline .empty-image-inline,
+.milkdown-host .milkdown .milkdown-image-block > .image-edit {
+  border: 1px solid color-mix(in srgb, var(--border) 78%, transparent);
+  border-radius: calc(var(--radius) - 0.2rem);
+  background: color-mix(in srgb, var(--card) 84%, transparent);
+  color: var(--foreground);
+}
+
+.milkdown-host .milkdown .milkdown-image-block > .caption-input,
+.milkdown-host .milkdown .milkdown-image-inline input,
+.milkdown-host .milkdown .milkdown-image-block input {
+  color: var(--foreground);
+}
+
+.milkdown-host .milkdown .ProseMirror img,
+.milkdown-host .milkdown .milkdown-image-block img,
+.milkdown-host .milkdown .milkdown-image-inline img {
+  display: block;
+  max-width: 100%;
+  border-radius: calc(var(--radius) - 0.1rem);
 }

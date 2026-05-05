@@ -1,18 +1,7 @@
 <script setup lang="ts">
+import { Crepe, CrepeFeature } from '@milkdown/crepe'
 import { storeToRefs } from 'pinia'
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import {
-  commandsForFeatures,
-  createEditorView,
-  focusEditorView,
-  isDocumentVisuallyEmpty,
-  restoreEditorViewSelection,
-  runToolbarCommand,
-  serializeMarkdown,
-  setEditorViewMarkdown,
-  prosemirrorSchema,
-} from './prosemirror-editor-core'
-import type { EditorView } from 'prosemirror-view'
+import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useEditorSettingsStore } from '@/state/editor-settings'
 import { useNotesStore } from '@/state/notes'
 
@@ -20,55 +9,16 @@ const notesStore = useNotesStore()
 const editorSettingsStore = useEditorSettingsStore()
 
 const { activeNote, editorFocusRequestId } = storeToRefs(notesStore)
-const { settings, enabledFeatureSet } = storeToRefs(editorSettingsStore)
+const { settings } = storeToRefs(editorSettingsStore)
 
-const shellRef = ref<HTMLElement | null>(null)
 const hostRef = ref<HTMLElement | null>(null)
 
-let view: EditorView | null = null
+let crepe: Crepe | null = null
+let imageSyncObserver: MutationObserver | null = null
 let isApplyingExternalContent = false
 let lastAppliedMarkdown = activeNote.value?.content ?? ''
 let lastHandledFocusRequestId = 0
-
-const editorConfigKey = computed(() => [...settings.value.enabledFeatures].sort().join(','))
-
-async function syncRenderedImageSources() {
-  const shell = shellRef.value
-  const notePath = activeNote.value?.path
-  if (!shell || !notePath || !window.notesApi) return
-
-  const images = Array.from(shell.querySelectorAll<HTMLImageElement>('.pm-editor-image'))
-  await Promise.all(
-    images.map(async (image) => {
-      const markdownSrc = image.dataset.markdownSrc ?? image.getAttribute('src') ?? ''
-      if (!markdownSrc || /^(file:|data:|blob:|https?:|note-asset:)/i.test(markdownSrc)) return
-
-      image.dataset.markdownSrc = markdownSrc
-
-      try {
-        const { fileUrl } = await window.notesApi!.resolveNoteAssetPath(notePath, markdownSrc)
-        if (activeNote.value?.path !== notePath) return
-        if (image.isConnected) {
-          image.src = fileUrl
-        }
-      } catch {
-        // Keep original markdown src when preview resolution fails.
-      }
-    }),
-  )
-}
-
-async function saveImageFiles(files: File[]) {
-  const images: Array<{ alt: string; src: string }> = []
-  for (const file of files) {
-    const result = await notesStore.saveImageAsset(file, settings.value)
-    images.push({
-      alt: file.name,
-      src: result.relativePath,
-    })
-  }
-  return images
-}
+let pendingFocusAfterCreate = false
 
 function applyStoreMarkdown(markdown: string) {
   if (!notesStore.activeNote) return
@@ -79,158 +29,149 @@ function applyStoreMarkdown(markdown: string) {
   }
 }
 
-function currentMarkdown() {
-  if (!view) return activeNote.value?.content ?? ''
-  return serializeMarkdown(view.state.doc)
+async function uploadImage(file: File) {
+  const result = await notesStore.saveImageAsset(file, settings.value)
+  return result.relativePath
 }
 
-function captureEditorSelectionSnapshot() {
-  if (!view) {
-    return {
-      anchor: 0,
-      focused: false,
-      head: 0,
-    }
-  }
+async function syncRenderedImageSources() {
+  const host = hostRef.value
+  const notePath = activeNote.value?.path
+  const notesApi = window.notesApi
+  if (!host || !notePath || !notesApi) return
 
+  const images = Array.from(host.querySelectorAll<HTMLImageElement>('.milkdown img'))
+  await Promise.all(
+    images.map(async (image) => {
+      const rawSrc = image.dataset.markdownSrc ?? image.getAttribute('src') ?? ''
+      if (!rawSrc || /^(file:|data:|blob:|https?:|note-asset:)/i.test(rawSrc)) return
+
+      image.dataset.markdownSrc = rawSrc
+
+      try {
+        const { fileUrl } = await notesApi.resolveNoteAssetPath(notePath, rawSrc)
+        if (activeNote.value?.path !== notePath) return
+        if (image.isConnected) {
+          image.src = fileUrl
+        }
+      } catch {
+        // Keep the original markdown src when preview resolution fails.
+      }
+    }),
+  )
+}
+
+function bindImageSyncObserver() {
+  imageSyncObserver?.disconnect()
+
+  const host = hostRef.value
+  if (!host) return
+
+  imageSyncObserver = new MutationObserver(() => {
+    void syncRenderedImageSources()
+  })
+
+  imageSyncObserver.observe(host, {
+    childList: true,
+    subtree: true,
+    attributes: true,
+    attributeFilter: ['src'],
+  })
+}
+
+function isEditorFocused() {
   const activeElement = document.activeElement
-  const root = hostRef.value
-  const focused = Boolean(root && activeElement && root.contains(activeElement))
-  const { from, to } = view.state.selection
-
-  return {
-    anchor: from,
-    focused,
-    head: to,
-  }
+  return Boolean(hostRef.value && activeElement && hostRef.value.contains(activeElement))
 }
 
-function rebuildEditorView() {
-  if (!hostRef.value) return
-  const previousSelection = captureEditorSelectionSnapshot()
+function focusEditor() {
+  const editorElement = hostRef.value?.querySelector<HTMLElement>('.milkdown .ProseMirror')
+  if (!editorElement) return false
+  editorElement.focus()
+  return true
+}
 
-  view?.destroy()
-  view = createEditorView({
-    element: hostRef.value,
-    enabledFeatures: enabledFeatureSet.value,
-    markdown: activeNote.value?.content ?? '',
-    onDocChange(markdown) {
+async function createCrepeEditor() {
+  if (!hostRef.value) return
+
+  const shouldRestoreFocus = pendingFocusAfterCreate || isEditorFocused()
+  await crepe?.destroy()
+
+  crepe = new Crepe({
+    root: hostRef.value,
+    defaultValue: activeNote.value?.content ?? '',
+    features: {
+      [CrepeFeature.Cursor]: false,
+      [CrepeFeature.BlockEdit]: false,
+      [CrepeFeature.LinkTooltip]: false,
+      [CrepeFeature.Latex]: false,
+      [CrepeFeature.Placeholder]: false,
+      [CrepeFeature.Table]: false,
+      [CrepeFeature.Toolbar]: false,
+      [CrepeFeature.TopBar]: false,
+    },
+    featureConfigs: {
+      [CrepeFeature.ImageBlock]: {
+        onUpload: uploadImage,
+        inlineOnUpload: uploadImage,
+        blockOnUpload: uploadImage,
+      },
+    },
+  })
+
+  crepe.on((listener) => {
+    listener.markdownUpdated((_ctx, markdown) => {
       if (isApplyingExternalContent) return
       lastAppliedMarkdown = markdown
       applyStoreMarkdown(markdown)
-      void nextTick(() => syncRenderedImageSources())
-    },
-    onPasteImages: async (files) => {
-      if (!view) return
-      const images = await saveImageFiles(files)
-      const nextView = view
-      if (!nextView) return
-
-      const emptyDoc = isDocumentVisuallyEmpty(nextView.state.doc)
-      let tr = nextView.state.tr
-      for (const image of images) {
-        const imageNode = prosemirrorSchema.nodes.image.create({
-          alt: image.alt,
-          src: image.src,
-          title: null,
-        })
-        tr = emptyDoc
-          ? tr.replaceWith(0, tr.doc.content.size, imageNode)
-          : tr.replaceSelectionWith(imageNode)
-      }
-      nextView.dispatch(tr.scrollIntoView())
-      lastAppliedMarkdown = currentMarkdown()
-      applyStoreMarkdown(lastAppliedMarkdown)
-      await nextTick()
-      await syncRenderedImageSources()
-    },
+    })
   })
 
-  lastAppliedMarkdown = currentMarkdown()
-  void nextTick(async () => {
-    if (view && previousSelection.focused) {
-      restoreEditorViewSelection(view, previousSelection.anchor, previousSelection.head)
+  await crepe.create()
+  lastAppliedMarkdown = activeNote.value?.content ?? ''
+  bindImageSyncObserver()
+  await syncRenderedImageSources()
+  if (shouldRestoreFocus) {
+    await nextTick()
+    if (focusEditor()) {
+      pendingFocusAfterCreate = false
     }
-    await syncRenderedImageSources()
-  })
-}
-
-function setEditorMarkdown(markdown: string) {
-  if (!view) return
-  if (markdown === lastAppliedMarkdown) return
-
-  isApplyingExternalContent = true
-  setEditorViewMarkdown(view, markdown, enabledFeatureSet.value)
-  lastAppliedMarkdown = currentMarkdown()
-  isApplyingExternalContent = false
-  void nextTick(() => syncRenderedImageSources())
-}
-
-function focusEditor(placeAtEnd = false) {
-  if (!view) return
-  focusEditorView(view, placeAtEnd)
-}
-
-function handleEditorBlankClick(event: MouseEvent) {
-  if (!view) return
-  const target = event.target
-  if (!(target instanceof HTMLElement)) return
-  const clickedShell = target === shellRef.value || target === hostRef.value
-  if (!clickedShell) return
-  focusEditor(true)
+  }
 }
 
 onMounted(() => {
-  rebuildEditorView()
+  void createCrepeEditor()
 })
 
 onBeforeUnmount(() => {
-  view?.destroy()
-  view = null
+  imageSyncObserver?.disconnect()
+  imageSyncObserver = null
+  void crepe?.destroy()
+  crepe = null
 })
-
-function runCommand(command: ReturnType<typeof commandsForFeatures>[keyof ReturnType<typeof commandsForFeatures>]) {
-  if (!view || !command) return false
-  return runToolbarCommand(view, command)
-}
-
-const featureCommands = computed(() => commandsForFeatures(enabledFeatureSet.value))
-
-defineExpose({
-  focusEditor,
-  runBlockquoteCommand: () => runCommand(featureCommands.value.toggleBlockquote),
-  runBoldCommand: () => runCommand(featureCommands.value.toggleBold),
-  runBulletListCommand: () => runCommand(featureCommands.value.toggleBulletList),
-  runCodeBlockCommand: () => runCommand(featureCommands.value.toggleCodeBlock),
-  runHeadingCommand: () => runCommand(featureCommands.value.toggleHeading),
-  runItalicCommand: () => runCommand(featureCommands.value.toggleItalic),
-  runOrderedListCommand: () => runCommand(featureCommands.value.toggleOrderedList),
-  runTaskListCommand: () => runCommand(featureCommands.value.toggleTaskList),
-})
-
-watch(
-  () => editorConfigKey.value,
-  () => {
-    rebuildEditorView()
-  },
-)
 
 watch(
   () => activeNote.value?.content ?? '',
-  (markdown) => {
-    if (!view) return
+  async (markdown) => {
+    if (!crepe) return
     if (markdown === lastAppliedMarkdown) return
-    setEditorMarkdown(markdown)
+
+    isApplyingExternalContent = true
+    await createCrepeEditor()
+    isApplyingExternalContent = false
+    lastAppliedMarkdown = markdown
   },
 )
 
 watch(
   () => editorFocusRequestId.value,
   async (focusRequestId) => {
-    if (!view) return
     if (focusRequestId === 0 || focusRequestId === lastHandledFocusRequestId) return
+    pendingFocusAfterCreate = true
     await nextTick()
-    focusEditor(true)
+    if (focusEditor()) {
+      pendingFocusAfterCreate = false
+    }
     lastHandledFocusRequestId = focusRequestId
   },
 )
@@ -238,16 +179,8 @@ watch(
 
 <template>
   <section class="editor-surface flex min-h-0 flex-1 flex-col overflow-hidden">
-    <div
-      ref="shellRef"
-      class="pm-host relative min-h-0 flex-1 overflow-y-auto px-[var(--editor-pad-x)] py-1"
-      @click="handleEditorBlankClick"
-    >
-      <div
-        ref="hostRef"
-        class="pm-editor min-h-full"
-        data-placeholder="开始写点什么，或粘贴一段 Markdown…"
-      />
+    <div class="milkdown-host min-h-0 flex-1 overflow-y-auto px-[var(--editor-pad-x)]">
+      <div ref="hostRef" class="min-h-full" />
     </div>
   </section>
 </template>
