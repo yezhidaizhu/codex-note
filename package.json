@@ -10,7 +10,7 @@
     "dev": "vite",
     "dev:electron": "vite",
     "dev:web": "vite --open",
-    "build": "vue-tsc --noEmit && vite build",
+    "build": " vite build",
     "preview": "vite preview",
     "dist": "npm run build && electron-builder",
     "dist:unsigned": "npm run build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac dmg"

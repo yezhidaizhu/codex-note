@@ -21,6 +21,8 @@ import {
   sanitizePinnedNotePaths,
   sanitizeQuickCreateDirectory,
   sanitizeQuickCreateNamingRule,
+  sanitizeQuickCreateCenterWindowOnTrigger,
+  sanitizeQuickCreateHideWindowOnTriggerWhenFocused,
   sanitizeQuickCreateMode,
   sanitizeQuickCreateTargetPath,
   sanitizeQuickCreateWriteClipboardOnCreate,
@@ -221,6 +223,18 @@ async function showQuickCreateError(message: string): Promise<void> {
 async function handleQuickCreateShortcut(): Promise<void> {
   try {
     const [settings] = await Promise.all([readSettings(), notesService.getNotesDirOrThrow()])
+    const isWindowFocused =
+      Boolean(mainWindow) &&
+      !mainWindow.isDestroyed() &&
+      mainWindow.isVisible() &&
+      !mainWindow.isMinimized() &&
+      mainWindow.isFocused()
+
+    if (settings.quickCreate.hideWindowOnTriggerWhenFocused && isWindowFocused) {
+      mainWindow?.hide()
+      return
+    }
+
     const content = settings.quickCreate.writeClipboardOnCreate ? clipboard.readText() : ''
     const payload =
       settings.quickCreate.mode === 'open'
@@ -236,8 +250,7 @@ async function handleQuickCreateShortcut(): Promise<void> {
             })
           }
 
-    const shouldCenterWindow = !mainWindow || mainWindow.isDestroyed() || !mainWindow.isVisible() || mainWindow.isMinimized() || !mainWindow.isFocused()
-    restoreWindow({ center: shouldCenterWindow })
+    restoreWindow({ center: settings.quickCreate.centerWindowOnTrigger })
     emitQuickCreateTriggered(payload)
   } catch (error) {
     await showQuickCreateError(error instanceof Error ? error.message : '创建笔记时出现未知错误。')
@@ -622,7 +635,15 @@ ipcMain.handle('settings:update-quick-create', async (_event, quickCreate: Store
     namingRule:
       quickCreate.namingRule === undefined
         ? current.quickCreate.namingRule
-        : sanitizeQuickCreateNamingRule(quickCreate.namingRule)
+        : sanitizeQuickCreateNamingRule(quickCreate.namingRule),
+    centerWindowOnTrigger:
+      quickCreate.centerWindowOnTrigger === undefined
+        ? current.quickCreate.centerWindowOnTrigger
+        : sanitizeQuickCreateCenterWindowOnTrigger(quickCreate.centerWindowOnTrigger),
+    hideWindowOnTriggerWhenFocused:
+      quickCreate.hideWindowOnTriggerWhenFocused === undefined
+        ? current.quickCreate.hideWindowOnTriggerWhenFocused
+        : sanitizeQuickCreateHideWindowOnTriggerWhenFocused(quickCreate.hideWindowOnTriggerWhenFocused)
   }
 
   await writeSettings({

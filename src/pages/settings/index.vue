@@ -117,6 +117,14 @@ function updateQuickCreateNamingRule(namingRule: 'default' | 'datetime') {
   void notesStore.updateQuickCreateSettings({ ...quickCreate.value, namingRule })
 }
 
+function updateQuickCreateCenterWindowOnTrigger(centerWindowOnTrigger: boolean) {
+  void notesStore.updateQuickCreateSettings({ ...quickCreate.value, centerWindowOnTrigger })
+}
+
+function updateQuickCreateHideWindowOnTriggerWhenFocused(hideWindowOnTriggerWhenFocused: boolean) {
+  void notesStore.updateQuickCreateSettings({ ...quickCreate.value, hideWindowOnTriggerWhenFocused })
+}
+
 function toggleEditorFeature(feature: EditorFeatureKey, enabled: boolean) {
   void editorSettingsStore.setFeatureEnabled(feature, enabled)
 }
@@ -277,6 +285,8 @@ watch(
           @update-quick-create-target-path="updateQuickCreateTargetPath"
           @update-quick-create-write-clipboard-on-create="updateQuickCreateWriteClipboardOnCreate"
           @update-quick-create-naming-rule="updateQuickCreateNamingRule"
+          @update-quick-create-center-window-on-trigger="updateQuickCreateCenterWindowOnTrigger"
+          @update-quick-create-hide-window-on-trigger-when-focused="updateQuickCreateHideWindowOnTriggerWhenFocused"
         />
 
         <AppearanceSettingsSection

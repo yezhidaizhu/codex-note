@@ -14,6 +14,8 @@ const emit = defineEmits<{
   (e: 'updateQuickCreateTargetPath', targetPath: string): void
   (e: 'updateQuickCreateWriteClipboardOnCreate', writeClipboardOnCreate: boolean): void
   (e: 'updateQuickCreateNamingRule', namingRule: 'default' | 'datetime'): void
+  (e: 'updateQuickCreateCenterWindowOnTrigger', centerWindowOnTrigger: boolean): void
+  (e: 'updateQuickCreateHideWindowOnTriggerWhenFocused', hideWindowOnTriggerWhenFocused: boolean): void
 }>()
 
 const quickCreateDirectoryDraft = ref(props.quickCreate.directory)
@@ -67,6 +69,14 @@ function onQuickCreateDirectoryKeydown(event: KeyboardEvent) {
 
 function updateQuickCreateWriteClipboardOnCreate(event: Event) {
   emit('updateQuickCreateWriteClipboardOnCreate', (event.target as HTMLInputElement).checked)
+}
+
+function updateQuickCreateCenterWindowOnTrigger(event: Event) {
+  emit('updateQuickCreateCenterWindowOnTrigger', (event.target as HTMLInputElement).checked)
+}
+
+function updateQuickCreateHideWindowOnTriggerWhenFocused(event: Event) {
+  emit('updateQuickCreateHideWindowOnTriggerWhenFocused', (event.target as HTMLInputElement).checked)
 }
 
 function updateQuickCreateTargetPathDraft(event: Event) {
@@ -249,6 +259,104 @@ function onQuickCreateTargetPathKeydown(event: KeyboardEvent) {
                   type="checkbox"
                   class="peer absolute inset-0 z-10 cursor-pointer opacity-0"
                   @change="updateQuickCreateWriteClipboardOnCreate"
+                >
+                <span
+                  class="h-4 w-4 rounded-[4px] border border-red-500 bg-transparent transition-colors peer-checked:border-[var(--primary)] peer-checked:bg-[var(--primary)]"
+                />
+                <svg
+                  viewBox="0 0 16 16"
+                  class="pointer-events-none absolute h-3.5 w-3.5 text-white opacity-0 transition-opacity peer-checked:opacity-100"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M4 8.2 6.6 10.8 12 5.4"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2.35"
+                  />
+                </svg>
+              </span>
+            </label>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="rounded-[calc(var(--radius)-0.05rem)] border border-[color-mix(in_srgb,var(--border)_78%,transparent)] bg-[color-mix(in_srgb,var(--card)_18%,transparent)] p-[calc(var(--settings-panel-pad)-0.1rem)]">
+      <div
+        class="grid items-center gap-[var(--space-3)] pt-0 pb-[calc(var(--settings-panel-pad)-0.05rem)] lg:grid-cols-[136px_minmax(0,1fr)] lg:gap-[var(--space-4)]"
+      >
+        <div class="min-w-0">
+          <div class="flex items-center gap-[var(--space-2)] text-[var(--foreground)]">
+            <Keyboard class="h-4 w-4 text-[var(--muted-foreground)]" />
+            <p class="text-ui-sm font-medium">唤起时居中</p>
+          </div>
+          <p class="text-ui-xs mt-1 text-[var(--muted-foreground)]">开启后快捷唤起会把窗口居中显示；关闭后按上次位置显示。</p>
+        </div>
+        <div class="min-w-0">
+          <div class="flex w-full lg:justify-end">
+            <label
+              class="flex w-full max-w-[360px] cursor-pointer items-center justify-between gap-[var(--space-4)] rounded-[calc(var(--radius)-0.1rem)] border border-[color-mix(in_srgb,var(--border)_82%,transparent)] bg-[color-mix(in_srgb,var(--card)_36%,transparent)] px-3 py-2.5"
+            >
+              <span class="text-ui-sm text-[var(--foreground)]">
+                {{ props.quickCreate.centerWindowOnTrigger ? '已开启，唤起时重新居中。' : '已关闭，唤起时保持上次位置。' }}
+              </span>
+              <span class="relative flex h-4 w-4 shrink-0 items-center justify-center">
+                <input
+                  :checked="props.quickCreate.centerWindowOnTrigger"
+                  type="checkbox"
+                  class="peer absolute inset-0 z-10 cursor-pointer opacity-0"
+                  @change="updateQuickCreateCenterWindowOnTrigger"
+                >
+                <span
+                  class="h-4 w-4 rounded-[4px] border border-red-500 bg-transparent transition-colors peer-checked:border-[var(--primary)] peer-checked:bg-[var(--primary)]"
+                />
+                <svg
+                  viewBox="0 0 16 16"
+                  class="pointer-events-none absolute h-3.5 w-3.5 text-white opacity-0 transition-opacity peer-checked:opacity-100"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M4 8.2 6.6 10.8 12 5.4"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2.35"
+                  />
+                </svg>
+              </span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div
+        class="grid items-center gap-[var(--space-3)] border-t border-[color-mix(in_srgb,var(--border)_72%,transparent)] py-[calc(var(--settings-panel-pad)-0.05rem)] lg:grid-cols-[136px_minmax(0,1fr)] lg:gap-[var(--space-4)]"
+      >
+        <div class="min-w-0">
+          <div class="flex items-center gap-[var(--space-2)] text-[var(--foreground)]">
+            <Keyboard class="h-4 w-4 text-[var(--muted-foreground)]" />
+            <p class="text-ui-sm font-medium">聚焦时收起窗口</p>
+          </div>
+          <p class="text-ui-xs mt-1 text-[var(--muted-foreground)]">开启后，如果窗口当前已在前台聚焦，再次快捷唤起会直接收起窗口。</p>
+        </div>
+        <div class="min-w-0">
+          <div class="flex w-full lg:justify-end">
+            <label
+              class="flex w-full max-w-[360px] cursor-pointer items-center justify-between gap-[var(--space-4)] rounded-[calc(var(--radius)-0.1rem)] border border-[color-mix(in_srgb,var(--border)_82%,transparent)] bg-[color-mix(in_srgb,var(--card)_36%,transparent)] px-3 py-2.5"
+            >
+              <span class="text-ui-sm text-[var(--foreground)]">
+                {{ props.quickCreate.hideWindowOnTriggerWhenFocused ? '已开启，聚焦时会收起窗口。' : '已关闭，聚焦时仍执行快速创建。' }}
+              </span>
+              <span class="relative flex h-4 w-4 shrink-0 items-center justify-center">
+                <input
+                  :checked="props.quickCreate.hideWindowOnTriggerWhenFocused"
+                  type="checkbox"
+                  class="peer absolute inset-0 z-10 cursor-pointer opacity-0"
+                  @change="updateQuickCreateHideWindowOnTriggerWhenFocused"
                 >
                 <span
                   class="h-4 w-4 rounded-[4px] border border-red-500 bg-transparent transition-colors peer-checked:border-[var(--primary)] peer-checked:bg-[var(--primary)]"

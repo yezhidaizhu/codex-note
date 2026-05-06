@@ -20,6 +20,8 @@ export type StoredSettings = {
     targetPath: string
     writeClipboardOnCreate: boolean
     namingRule: 'default' | 'datetime'
+    centerWindowOnTrigger: boolean
+    hideWindowOnTriggerWhenFocused: boolean
   }
   editor: {
     enabledFeatures: Array<'heading' | 'bold' | 'italic' | 'blockquote' | 'bulletList' | 'orderedList' | 'taskList' | 'codeBlock' | 'link' | 'image'>
@@ -48,7 +50,9 @@ export const defaultSettings: StoredSettings = {
     directory: '/快速创建',
     targetPath: '',
     writeClipboardOnCreate: false,
-    namingRule: 'default'
+    namingRule: 'default',
+    centerWindowOnTrigger: true,
+    hideWindowOnTriggerWhenFocused: false
   },
   editor: {
     enabledFeatures: ['heading', 'bold', 'italic', 'blockquote', 'bulletList', 'orderedList', 'taskList', 'codeBlock', 'link', 'image'],
@@ -149,6 +153,14 @@ export function sanitizeQuickCreateNamingRule(value: 'default' | 'datetime' | nu
   return value === 'datetime' ? 'datetime' : 'default'
 }
 
+export function sanitizeQuickCreateCenterWindowOnTrigger(value: boolean | null | undefined): boolean {
+  return typeof value === 'boolean' ? value : defaultSettings.quickCreate.centerWindowOnTrigger
+}
+
+export function sanitizeQuickCreateHideWindowOnTriggerWhenFocused(value: boolean | null | undefined): boolean {
+  return typeof value === 'boolean' ? value : defaultSettings.quickCreate.hideWindowOnTriggerWhenFocused
+}
+
 const editorFeatureKeys = new Set(defaultSettings.editor.enabledFeatures)
 
 export function sanitizeEditorEnabledFeatures(
@@ -239,7 +251,13 @@ export async function readSettings(): Promise<StoredSettings> {
         directory: sanitizeQuickCreateDirectory(parsedQuickCreate.directory),
         targetPath: sanitizeQuickCreateTargetPath(parsedQuickCreate.targetPath),
         writeClipboardOnCreate: sanitizeQuickCreateWriteClipboardOnCreate(parsedQuickCreate.writeClipboardOnCreate),
-        namingRule: sanitizeQuickCreateNamingRule(parsedQuickCreate.namingRule)
+        namingRule: sanitizeQuickCreateNamingRule(parsedQuickCreate.namingRule),
+        centerWindowOnTrigger: sanitizeQuickCreateCenterWindowOnTrigger(
+          parsedQuickCreate.centerWindowOnTrigger ?? parsedQuickCreate.revealWindowOnTrigger,
+        ),
+        hideWindowOnTriggerWhenFocused: sanitizeQuickCreateHideWindowOnTriggerWhenFocused(
+          parsedQuickCreate.hideWindowOnTriggerWhenFocused,
+        )
       },
       editor: {
         enabledFeatures: sanitizeEditorEnabledFeatures(parsedEditor.enabledFeatures),

@@ -30,6 +30,8 @@ const defaultQuickCreateSettings: QuickCreateSettings = {
   targetPath: '',
   writeClipboardOnCreate: false,
   namingRule: 'default',
+  centerWindowOnTrigger: true,
+  hideWindowOnTriggerWhenFocused: false,
 }
 
 function getNotesApi() {

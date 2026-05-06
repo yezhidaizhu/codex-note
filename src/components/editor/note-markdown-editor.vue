@@ -349,11 +349,11 @@ watch(
 
 <template>
   <section class="editor-surface flex min-h-0 flex-1 flex-col overflow-hidden">
-    <div class="min-h-0 flex-1 overflow-hidden px-[var(--editor-pad-x)]">
+    <div class="min-h-0 flex-1 overflow-hidden">
       <textarea
         ref="textareaRef"
         :value="draftContent"
-        class="text-ui-sm h-full min-h-full w-full resize-none border-none bg-transparent px-0 py-0 leading-[1.56] text-[var(--foreground)] outline-none placeholder:text-[var(--muted-foreground)]"
+        class="text-ui-sm h-full min-h-full w-full resize-none border-none bg-transparent px-[var(--editor-pad-x)] py-0 leading-[1.56] text-[var(--foreground)] outline-none placeholder:text-[var(--muted-foreground)]"
         placeholder="开始写点什么"
         spellcheck="false"
         @compositionstart="handleCompositionstart"

@@ -197,7 +197,7 @@ export const densityPresets: Record<AppearanceDensity, Record<string, string>> =
   comfortable: {
     '--content-area-pad': '1.25rem',
     '--panel-pad': '1.25rem',
-    '--editor-pad-x': '1rem',
+    '--editor-pad-x': '0.6rem',
     '--editor-pad-y': '1rem',
     '--settings-page-pad': '1.25rem',
     '--settings-page-gap': '1.25rem',
@@ -229,7 +229,7 @@ export const densityPresets: Record<AppearanceDensity, Record<string, string>> =
   compact: {
     '--content-area-pad': '0.875rem',
     '--panel-pad': '0.875rem',
-    '--editor-pad-x': '1rem',
+    '--editor-pad-x': '0.5rem',
     '--editor-pad-y': '1rem',
     '--settings-page-pad': '0.875rem',
     '--settings-page-gap': '0.875rem',

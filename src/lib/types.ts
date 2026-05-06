@@ -19,6 +19,8 @@ export type QuickCreateSettings = {
   targetPath: string
   writeClipboardOnCreate: boolean
   namingRule: 'default' | 'datetime'
+  centerWindowOnTrigger: boolean
+  hideWindowOnTriggerWhenFocused: boolean
 }
 
 export type EditorFeatureKey =
