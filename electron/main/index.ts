@@ -1,6 +1,6 @@
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
-import { app, BrowserWindow, clipboard, dialog, globalShortcut, ipcMain, Menu, nativeImage, nativeTheme, net, protocol, screen, shell, Tray } from 'electron'
+import { app, BrowserWindow, globalShortcut, Menu, nativeImage, nativeTheme, net, protocol, screen, Tray } from 'electron'
 import { MAIN_CONFIG } from './config'
 import {
   clampWindowFrameToWorkArea,
@@ -11,23 +11,27 @@ import {
   type WindowBounds,
   type WindowSizeMode
 } from './window'
+import { createWorkspaceFileService } from './file/service'
+import { createGitService } from './git/service'
+import { registerIpcHandlers } from './ipc'
 import { createNotesService } from './notes'
 import {
   readSettings,
+  sanitizeGitAutoCommitEnabled,
+  sanitizeGitAutoCommitIntervalMinutes,
   sanitizeBackgroundColor,
   sanitizeBackgroundOpacity,
   sanitizeEditorEnabledFeatures,
   sanitizeEditorImageDirectory,
   sanitizePinnedNotePaths,
-  sanitizeQuickCreateDirectory,
-  sanitizeQuickCreateNamingRule,
   sanitizeQuickCreateCenterWindowOnTrigger,
+  sanitizeQuickCreateDirectory,
   sanitizeQuickCreateHideWindowOnTriggerWhenFocused,
   sanitizeQuickCreateMode,
+  sanitizeQuickCreateNamingRule,
   sanitizeQuickCreateTargetPath,
   sanitizeQuickCreateWriteClipboardOnCreate,
   writeSettings,
-  type StoredSettings
 } from './settings/store'
 
 let mainWindow: BrowserWindow | null = null
@@ -38,11 +42,16 @@ let displayChangeReapplyTimer: NodeJS.Timeout | null = null
 let lastDisplayId: number | null = null
 let displayChangeResizeLockUntil = 0
 let currentWindowSizeMode: WindowSizeMode = 'expanded'
+let autoCommitTimer: NodeJS.Timeout | null = null
+let autoCommitSequence = 0
+let nextAutoCommitAt: string | null = null
 const currentDir = dirname(fileURLToPath(import.meta.url))
 const appIconPath = join(currentDir, '../../resources/icon.png')
 const trayTemplateIconPath = join(currentDir, '../../resources/trayTemplate.png')
 const trayTemplateIcon2xPath = join(currentDir, '../../resources/trayTemplate@2x.png')
 const NOTE_ASSET_SCHEME = 'note-asset'
+const AUTO_COMMIT_MESSAGE = 'notes: auto commit'
+const MANUAL_COMMIT_MESSAGE = 'notes: manual commit'
 const notesService = createNotesService({
   getNotesDirSetting: async () => (await readSettings()).notesDir,
   defaultSearchMode: MAIN_CONFIG.search.defaultMode,
@@ -54,6 +63,8 @@ const notesService = createNotesService({
     mainWindow.webContents.send('notes:tree-changed', tree)
   }
 })
+const gitService = createGitService()
+const workspaceFileService = createWorkspaceFileService()
 
 protocol.registerSchemesAsPrivileged([
   {
@@ -273,6 +284,45 @@ function clearDisplayChangeReapplyTimer(): void {
 
   clearTimeout(displayChangeReapplyTimer)
   displayChangeReapplyTimer = null
+}
+
+function clearAutoCommitTimer(): void {
+  if (!autoCommitTimer) {
+    nextAutoCommitAt = null
+    return
+  }
+
+  clearTimeout(autoCommitTimer)
+  autoCommitTimer = null
+  nextAutoCommitAt = null
+}
+
+async function scheduleAutoCommitFromActivity(): Promise<void> {
+  const settings = await readSettings()
+  const notesDir = settings.notesDir
+
+  clearAutoCommitTimer()
+  autoCommitSequence += 1
+
+  if (!notesDir || !settings.gitAutomation.autoCommitEnabled) {
+    return
+  }
+
+  const currentSequence = autoCommitSequence
+  nextAutoCommitAt = new Date(Date.now() + settings.gitAutomation.autoCommitIntervalMinutes * 60 * 1000).toISOString()
+  autoCommitTimer = setTimeout(() => {
+    autoCommitTimer = null
+    nextAutoCommitAt = null
+    void (async () => {
+      const latestSettings = await readSettings()
+      if (currentSequence !== autoCommitSequence) return
+      if (!latestSettings.notesDir || latestSettings.notesDir !== notesDir) return
+      if (!latestSettings.gitAutomation.autoCommitEnabled) return
+      await gitService.commitAll(latestSettings.notesDir, AUTO_COMMIT_MESSAGE)
+    })().catch(() => {
+      // Auto commit failure should not interrupt note editing.
+    })
+  }, settings.gitAutomation.autoCommitIntervalMinutes * 60 * 1000)
 }
 
 async function persistWindowBounds(bounds: Electron.Rectangle, mode: WindowSizeMode = currentWindowSizeMode): Promise<void> {
@@ -552,317 +602,38 @@ app.on('window-all-closed', () => {
   }
 })
 
-ipcMain.handle('settings:get', async () => {
-  const settings = await readSettings()
-  const noteTree = settings.notesDir ? await notesService.currentNotesTree(settings.notesDir) : { notes: [], folders: [] }
-
-  return {
-    ...settings,
-    notes: noteTree.notes,
-    folders: noteTree.folders,
-    appearance: settings.appearance,
-    editor: settings.editor,
-    pinnedNotePaths: settings.pinnedNotePaths
-  }
-})
-
-ipcMain.handle('notes:choose-directory', async () => {
-  const current = await readSettings()
-  const result = await dialog.showOpenDialog(mainWindow!, {
-    title: '选择 Markdown 笔记保存目录',
-    defaultPath: current.notesDir ?? app.getPath('documents'),
-    properties: ['openDirectory', 'createDirectory']
-  })
-
-  if (result.canceled || result.filePaths.length === 0) {
-    return null
-  }
-
-  const notesDir = result.filePaths[0]
-  await writeSettings({ ...current, notesDir })
-  const noteTree = await notesService.currentNotesTree(notesDir)
-
-  return {
-    notesDir,
-    notes: noteTree.notes,
-    folders: noteTree.folders,
-    appearance: current.appearance,
-    quickCreate: current.quickCreate,
-    editor: current.editor,
-    pinnedNotePaths: current.pinnedNotePaths
-  }
-})
-
-ipcMain.handle('settings:update-appearance', async (_event, appearance: StoredSettings['appearance']) => {
-  const current = await readSettings()
-  const nextAppearance = {
-    mode: appearance.mode ?? current.appearance.mode,
-    theme: appearance.theme ?? current.appearance.theme,
-    density: appearance.density ?? current.appearance.density,
-    transparentBackground: appearance.transparentBackground ?? current.appearance.transparentBackground,
-    backgroundColor:
-      appearance.backgroundColor === undefined ? current.appearance.backgroundColor : sanitizeBackgroundColor(appearance.backgroundColor),
-    backgroundOpacity:
-      appearance.backgroundOpacity === undefined
-        ? current.appearance.backgroundOpacity
-        : sanitizeBackgroundOpacity(appearance.backgroundOpacity)
-  }
-
-  await writeSettings({
-    ...current,
-    appearance: nextAppearance
-  })
-
-  return nextAppearance
-})
-
-ipcMain.handle('settings:update-quick-create', async (_event, quickCreate: StoredSettings['quickCreate']) => {
-  const current = await readSettings()
-  const nextQuickCreate = {
-    mode: quickCreate.mode === undefined ? current.quickCreate.mode : sanitizeQuickCreateMode(quickCreate.mode),
-    directory:
-      quickCreate.directory === undefined
-        ? current.quickCreate.directory
-        : sanitizeQuickCreateDirectory(quickCreate.directory),
-    targetPath:
-      quickCreate.targetPath === undefined
-        ? current.quickCreate.targetPath
-        : sanitizeQuickCreateTargetPath(quickCreate.targetPath),
-    writeClipboardOnCreate:
-      quickCreate.writeClipboardOnCreate === undefined
-        ? current.quickCreate.writeClipboardOnCreate
-        : sanitizeQuickCreateWriteClipboardOnCreate(quickCreate.writeClipboardOnCreate),
-    namingRule:
-      quickCreate.namingRule === undefined
-        ? current.quickCreate.namingRule
-        : sanitizeQuickCreateNamingRule(quickCreate.namingRule),
-    centerWindowOnTrigger:
-      quickCreate.centerWindowOnTrigger === undefined
-        ? current.quickCreate.centerWindowOnTrigger
-        : sanitizeQuickCreateCenterWindowOnTrigger(quickCreate.centerWindowOnTrigger),
-    hideWindowOnTriggerWhenFocused:
-      quickCreate.hideWindowOnTriggerWhenFocused === undefined
-        ? current.quickCreate.hideWindowOnTriggerWhenFocused
-        : sanitizeQuickCreateHideWindowOnTriggerWhenFocused(quickCreate.hideWindowOnTriggerWhenFocused)
-  }
-
-  await writeSettings({
-    ...current,
-    quickCreate: nextQuickCreate
-  })
-
-  return nextQuickCreate
-})
-
-ipcMain.handle('settings:update-editor', async (_event, editor: StoredSettings['editor']) => {
-  const current = await readSettings()
-  const nextEditor = {
-    enabledFeatures:
-      editor.enabledFeatures === undefined ? current.editor.enabledFeatures : sanitizeEditorEnabledFeatures(editor.enabledFeatures),
-    imageDirectory:
-      editor.imageDirectory === undefined ? current.editor.imageDirectory : sanitizeEditorImageDirectory(editor.imageDirectory)
-  }
-
-  await writeSettings({
-    ...current,
-    editor: nextEditor
-  })
-
-  return nextEditor
-})
-
-ipcMain.handle('settings:update-pinned-note-paths', async (_event, pinnedNotePaths: string[]) => {
-  const current = await readSettings()
-  const nextPinnedNotePaths = sanitizePinnedNotePaths(pinnedNotePaths)
-
-  await writeSettings({
-    ...current,
-    pinnedNotePaths: nextPinnedNotePaths
-  })
-
-  return nextPinnedNotePaths
-})
-
-ipcMain.handle('system:get-appearance', async () => currentSystemAppearance())
-
-ipcMain.handle('notes:list', async () => {
-  const notesDir = await notesService.getNotesDirOrThrow()
-  return notesService.currentNotesTree(notesDir)
-})
-
-ipcMain.handle('notes:search', async (_event, query: string) => {
-  const notesDir = await notesService.getNotesDirOrThrow()
-  return notesService.searchNotes(notesDir, query)
-})
-
-ipcMain.handle('notes:get-search-mode', async () => {
-  return {
-    mode: notesService.getSearchMode()
-  }
-})
-
-ipcMain.handle('notes:set-search-mode', async (_event, mode: 'memory' | 'ripgrep') => {
-  notesService.setSearchMode(mode)
-  return {
-    mode: notesService.getSearchMode()
-  }
-})
-
-ipcMain.handle('notes:read', async (_event, notePath: string) => {
-  const notesDir = await notesService.getNotesDirOrThrow()
-  return notesService.readNote(notesDir, notePath)
-})
-
-ipcMain.handle(
-  'notes:save',
-  async (_event, payload: { currentPath?: string | null; parentPath: string | null; name?: string; content: string }) => {
-    const notesDir = await notesService.getNotesDirOrThrow()
-    return notesService.saveNote(notesDir, payload)
-  }
-)
-
-ipcMain.handle('notes:delete', async (_event, notePath: string) => {
-  const notesDir = await notesService.getNotesDirOrThrow()
-  return notesService.deleteNote(notesDir, notePath)
-})
-
-ipcMain.handle('notes:create-folder', async (_event, parentPath: string | null, name: string) => {
-  const notesDir = await notesService.getNotesDirOrThrow()
-  return notesService.createFolder(notesDir, parentPath, name)
-})
-
-ipcMain.handle('notes:delete-folder', async (_event, folderPath: string) => {
-  const notesDir = await notesService.getNotesDirOrThrow()
-  return notesService.deleteFolder(notesDir, folderPath)
-})
-
-ipcMain.handle('notes:move', async (_event, notePath: string, targetFolderPath: string | null) => {
-  const notesDir = await notesService.getNotesDirOrThrow()
-  return notesService.moveNote(notesDir, notePath, targetFolderPath)
-})
-
-ipcMain.handle('notes:move-folder', async (_event, folderPath: string, targetFolderPath: string | null) => {
-  const notesDir = await notesService.getNotesDirOrThrow()
-  return notesService.moveFolder(notesDir, folderPath, targetFolderPath)
-})
-
-ipcMain.handle('notes:rename-note', async (_event, notePath: string, name: string) => {
-  const notesDir = await notesService.getNotesDirOrThrow()
-  return notesService.renameNote(notesDir, notePath, name)
-})
-
-ipcMain.handle('notes:rename-folder', async (_event, folderPath: string, name: string) => {
-  const notesDir = await notesService.getNotesDirOrThrow()
-  return notesService.renameFolder(notesDir, folderPath, name)
-})
-
-ipcMain.handle('notes:get-absolute-path', async (_event, relativePath: string) => {
-  const notesDir = await notesService.getNotesDirOrThrow()
-  const normalized = relativePath
-    .replace(/\\/g, '/')
-    .split('/')
-    .map((segment) => segment.trim())
-    .filter((segment) => segment.length > 0 && segment !== '.')
-
-  if (normalized.some((segment) => segment === '..') || normalized.length === 0) {
-    throw new Error('路径非法。')
-  }
-
-  return {
-    path: resolve(notesDir, normalized.join('/')),
-  }
-})
-
-ipcMain.handle(
-  'notes:save-image-asset',
-  async (_event, payload: { notePath: string; directory: string; fileName: string; mimeType: string; bytes: Uint8Array }) => {
-    const notesDir = await notesService.getNotesDirOrThrow()
-    return notesService.saveImageAsset(notesDir, payload)
+registerIpcHandlers({
+  getMainWindow: () => mainWindow,
+  notesService,
+  gitService,
+  workspaceFileService,
+  readSettings,
+  writeSettings,
+  sanitizeBackgroundColor,
+  sanitizeBackgroundOpacity,
+  sanitizeEditorEnabledFeatures,
+  sanitizeEditorImageDirectory,
+  sanitizeGitAutoCommitEnabled,
+  sanitizeGitAutoCommitIntervalMinutes,
+  sanitizePinnedNotePaths,
+  sanitizeQuickCreateCenterWindowOnTrigger,
+  sanitizeQuickCreateDirectory,
+  sanitizeQuickCreateHideWindowOnTriggerWhenFocused,
+  sanitizeQuickCreateMode,
+  sanitizeQuickCreateNamingRule,
+  sanitizeQuickCreateTargetPath,
+  sanitizeQuickCreateWriteClipboardOnCreate,
+  currentSystemAppearance,
+  buildNoteAssetPreviewUrl,
+  currentWorkArea: () => currentWorkArea(),
+  computeDefaultWindowBounds,
+  persistWindowBounds,
+  applyWindowSizeMode,
+  getCurrentWindowSizeMode: () => currentWindowSizeMode,
+  scheduleAutoCommitFromActivity,
+  cancelAutoCommit: () => {
+    clearAutoCommitTimer()
+    autoCommitSequence += 1
   },
-)
-
-ipcMain.handle('notes:resolve-note-asset-path', async (_event, notePath: string, assetPath: string) => {
-  const notesDir = await notesService.getNotesDirOrThrow()
-  const { path } = notesService.resolveNoteAssetPath(notesDir, notePath, assetPath)
-  return {
-    path,
-    fileUrl: buildNoteAssetPreviewUrl(path),
-  }
-})
-
-ipcMain.handle('notes:resolve-image-directory-path', async (_event, payload: { notePath: string | null; directory: string }) => {
-  const notesDir = await notesService.getNotesDirOrThrow()
-  return notesService.ensureImageDirectory(notesDir, payload.notePath, payload.directory)
-})
-
-ipcMain.handle('notes:cleanup-unused-images', async (_event, directory: string) => {
-  const notesDir = await notesService.getNotesDirOrThrow()
-  return notesService.cleanupUnusedImages(notesDir, directory)
-})
-
-ipcMain.handle('clipboard:write-text', async (_event, value: string) => {
-  try {
-    clipboard.writeText(value)
-    return {
-      ok: true
-    }
-  } catch (error) {
-    return {
-      ok: false,
-      error: error instanceof Error ? error.message : '复制失败。'
-    }
-  }
-})
-
-ipcMain.handle('shell:open-directory-path', async (_event, directoryPath: string) => {
-  try {
-    const error = await shell.openPath(directoryPath)
-
-    if (error) {
-      return {
-        ok: false,
-        error
-      }
-    }
-
-    return {
-      ok: true
-    }
-  } catch (error) {
-    return {
-      ok: false,
-      error: error instanceof Error ? error.message : '打开目录失败。'
-    }
-  }
-})
-
-ipcMain.handle('window:set-sidebar-collapsed', async (_event, collapsed: boolean) => {
-  if (!mainWindow || mainWindow.isDestroyed()) {
-    const workArea = currentWorkArea()
-    return computeDefaultWindowBounds(workArea, collapsed ? 'collapsed' : 'expanded')
-  }
-
-  clearDisplayChangeReapplyTimer()
-  await persistWindowBounds(mainWindow.getBounds(), currentWindowSizeMode)
-  return applyWindowSizeMode(collapsed ? 'collapsed' : 'expanded')
-})
-
-ipcMain.handle('window:get-state', async () => {
-  return {
-    isAlwaysOnTop: mainWindow?.isAlwaysOnTop() ?? false
-  }
-})
-
-ipcMain.handle('window:set-always-on-top', async (_event, pinned: boolean) => {
-  if (!mainWindow || mainWindow.isDestroyed()) {
-    return {
-      isAlwaysOnTop: false
-    }
-  }
-
-  mainWindow.setAlwaysOnTop(pinned, 'floating')
-
-  return {
-    isAlwaysOnTop: mainWindow.isAlwaysOnTop()
-  }
+  getNextAutoCommitAt: () => nextAutoCommitAt,
 })

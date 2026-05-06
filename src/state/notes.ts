@@ -5,6 +5,8 @@ import { toast } from 'vue-sonner'
 import type {
   EditorSettings,
   FolderListItem,
+  GitAutomationSettings,
+  GitStatus,
   MoveFolderResult,
   NoteListItem as NoteListItemData,
   NotePayload,
@@ -32,6 +34,11 @@ const defaultQuickCreateSettings: QuickCreateSettings = {
   namingRule: 'default',
   centerWindowOnTrigger: true,
   hideWindowOnTriggerWhenFocused: false,
+}
+
+const defaultGitAutomationSettings: GitAutomationSettings = {
+  autoCommitEnabled: false,
+  autoCommitIntervalMinutes: 30,
 }
 
 function getNotesApi() {
@@ -183,6 +190,16 @@ export const useNotesStore = defineStore('notes', () => {
   const knownFolderPaths = ref<string[]>([])
   const lastSavedSnapshot = ref<{ path: string | null; content: string } | null>(null)
   const quickCreate = ref<QuickCreateSettings>({ ...defaultQuickCreateSettings })
+  const gitAutomation = ref<GitAutomationSettings>({ ...defaultGitAutomationSettings })
+  const gitStatus = ref<GitStatus>({
+    isGitAvailable: false,
+    isRepoInitialized: false,
+    hasGitignore: false,
+    hasPendingChanges: false,
+    repoPath: null,
+  })
+  const gitignoreDraft = ref('')
+  const gitignoreExists = ref(false)
   const editorFocusRequestId = ref(0)
 
   const filteredNotes = computed(() => {
@@ -195,6 +212,7 @@ export const useNotesStore = defineStore('notes', () => {
   let bootPromise: Promise<void> | null = null
   let hasBoundNotesTreeListener = false
   let searchRequestToken = 0
+  let gitignoreSaveToken = 0
 
   async function persistPinnedNotePaths(nextPaths: string[]) {
     try {
@@ -355,8 +373,10 @@ export const useNotesStore = defineStore('notes', () => {
       notes.value = settings.notes
       folders.value = settings.folders
       quickCreate.value = settings.quickCreate
+      gitAutomation.value = settings.gitAutomation
       pinnedNotePaths.value = settings.pinnedNotePaths.filter((path) => settings.notes.some((note) => note.path === path))
       syncExpandedFolders(settings.folders)
+      await refreshGitState()
 
       if (settings.notes.length > 0) {
         await openNote(settings.notes[0].path)
@@ -393,8 +413,10 @@ export const useNotesStore = defineStore('notes', () => {
       notes.value = result.notes
       folders.value = result.folders
       quickCreate.value = result.quickCreate
+      gitAutomation.value = result.gitAutomation
       pinnedNotePaths.value = result.pinnedNotePaths.filter((path) => result.notes.some((note) => note.path === path))
       syncExpandedFolders(result.folders)
+      await refreshGitState()
       query.value = ''
       searchResults.value = null
       searchActiveIndex.value = 0
@@ -690,6 +712,7 @@ function createNote(parentPath: string | null = null) {
         }
       }
 
+      await refreshGitState()
       errorMessage.value = ''
     } catch (error) {
       errorMessage.value = error instanceof Error ? error.message : '重命名目录失败。'
@@ -724,6 +747,77 @@ function createNote(parentPath: string | null = null) {
       errorMessage.value = ''
     } catch (error) {
       errorMessage.value = error instanceof Error ? error.message : '更新快速创建设置失败。'
+    }
+  }
+
+  async function refreshGitState() {
+    try {
+      gitStatus.value = await getNotesApi().getGitStatus()
+
+      if (!notesDir.value) {
+        gitignoreDraft.value = ''
+        gitignoreExists.value = false
+        errorMessage.value = ''
+        return
+      }
+
+      const gitignore = await getNotesApi().readWorkspaceTextFile('.gitignore')
+      const defaultContent = ['.DS_Store', 'Thumbs.db', '*.swp', '*.swo', '*.tmp'].join('\n')
+      gitignoreDraft.value = gitignore.exists ? gitignore.content : defaultContent
+      gitignoreExists.value = gitignore.exists
+      errorMessage.value = ''
+    } catch (error) {
+      if (!notesDir.value) {
+        gitignoreDraft.value = ''
+        gitignoreExists.value = false
+        gitStatus.value = {
+          isGitAvailable: false,
+          isRepoInitialized: false,
+          hasGitignore: false,
+          hasPendingChanges: false,
+          repoPath: null,
+        }
+      }
+      errorMessage.value = error instanceof Error ? error.message : '读取 Git 状态失败。'
+    }
+  }
+
+  async function initGitRepo() {
+    try {
+      gitStatus.value = await getNotesApi().initGitRepo()
+      await refreshGitState()
+      errorMessage.value = ''
+    } catch (error) {
+      errorMessage.value = error instanceof Error ? error.message : '初始化 Git 仓库失败。'
+    }
+  }
+
+  async function updateGitAutomationSettings(nextGitAutomation: GitAutomationSettings) {
+    try {
+      gitAutomation.value = await getNotesApi().updateGitAutomationSettings(nextGitAutomation)
+      errorMessage.value = ''
+    } catch (error) {
+      errorMessage.value = error instanceof Error ? error.message : '更新自动提交设置失败。'
+    }
+  }
+
+  async function saveGitignore(content = gitignoreDraft.value) {
+    try {
+      await getNotesApi().writeWorkspaceTextFile({ path: '.gitignore', content })
+      gitignoreDraft.value = content
+      await refreshGitState()
+      errorMessage.value = ''
+    } catch (error) {
+      errorMessage.value = error instanceof Error ? error.message : '保存 .gitignore 失败。'
+    }
+  }
+
+  async function commitGitNow() {
+    try {
+      gitStatus.value = await getNotesApi().commitGitNow()
+      errorMessage.value = ''
+    } catch (error) {
+      errorMessage.value = error instanceof Error ? error.message : '立即 commit 失败。'
     }
   }
 
@@ -818,6 +912,23 @@ function createNote(parentPath: string | null = null) {
   }
 
   watch(
+    gitignoreDraft,
+    (nextValue, previousValue, onCleanup) => {
+      if (!notesDir.value) return
+      if (nextValue === previousValue) return
+
+      const currentToken = ++gitignoreSaveToken
+      const timer = window.setTimeout(() => {
+        if (currentToken !== gitignoreSaveToken) return
+        void saveGitignore(nextValue)
+      }, 450)
+
+      onCleanup(() => window.clearTimeout(timer))
+    },
+    { flush: 'post' },
+  )
+
+  watch(
     query,
     (nextQuery, _prev, onCleanup) => {
       const normalizedQuery = nextQuery.trim()
@@ -880,6 +991,10 @@ function createNote(parentPath: string | null = null) {
     errorMessage,
     query,
     quickCreate,
+    gitAutomation,
+    gitStatus,
+    gitignoreDraft,
+    gitignoreExists,
     sidebarCollapsed,
     sidebarWidth,
     isPinned,
@@ -910,6 +1025,11 @@ function createNote(parentPath: string | null = null) {
     toggleFolderExpanded,
     countNotesInFolder,
     updateQuickCreateSettings,
+    refreshGitState,
+    initGitRepo,
+    updateGitAutomationSettings,
+    saveGitignore,
+    commitGitNow,
     openNotesDirectory,
     openImageDirectory,
     resolveImageDirectoryPath,

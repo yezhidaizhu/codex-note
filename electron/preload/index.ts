@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { AppearanceSettings, CleanupUnusedImagesResult, EditorSettings, NoteTreeResult, QuickCreateSettings } from '@/lib/types'
+import type { AppearanceSettings, CleanupUnusedImagesResult, EditorSettings, GitAutomationSettings, GitStatus, NoteTreeResult, QuickCreateSettings } from '@/lib/types'
 
 const api = {
   getSettings: () => ipcRenderer.invoke('settings:get'),
@@ -50,6 +50,13 @@ const api = {
   writeClipboardText: (value: string) => ipcRenderer.invoke('clipboard:write-text', value),
   updateAppearance: (appearance: AppearanceSettings) => ipcRenderer.invoke('settings:update-appearance', appearance),
   updateQuickCreateSettings: (quickCreate: QuickCreateSettings) => ipcRenderer.invoke('settings:update-quick-create', quickCreate),
+  getGitStatus: () => ipcRenderer.invoke('git:get-status') as Promise<GitStatus>,
+  initGitRepo: () => ipcRenderer.invoke('git:init-repo') as Promise<GitStatus>,
+  readWorkspaceTextFile: (path: string) => ipcRenderer.invoke('file:read-text', path) as Promise<{ content: string; exists: boolean }>,
+  writeWorkspaceTextFile: (payload: { path: string; content: string }) => ipcRenderer.invoke('file:write-text', payload) as Promise<void>,
+  commitGitNow: () => ipcRenderer.invoke('git:commit-now') as Promise<GitStatus>,
+  updateGitAutomationSettings: (gitAutomation: GitAutomationSettings) =>
+    ipcRenderer.invoke('settings:update-git-automation', gitAutomation) as Promise<GitAutomationSettings>,
   updateEditorSettings: (editor: EditorSettings) => ipcRenderer.invoke('settings:update-editor', editor) as Promise<EditorSettings>,
   updatePinnedNotePaths: (paths: string[]) => ipcRenderer.invoke('settings:update-pinned-note-paths', paths) as Promise<string[]>,
   setSidebarCollapsed: (collapsed: boolean) => ipcRenderer.invoke('window:set-sidebar-collapsed', collapsed),

@@ -23,6 +23,10 @@ export type StoredSettings = {
     centerWindowOnTrigger: boolean
     hideWindowOnTriggerWhenFocused: boolean
   }
+  gitAutomation: {
+    autoCommitEnabled: boolean
+    autoCommitIntervalMinutes: number
+  }
   editor: {
     enabledFeatures: Array<'heading' | 'bold' | 'italic' | 'blockquote' | 'bulletList' | 'orderedList' | 'taskList' | 'codeBlock' | 'link' | 'image'>
     imageDirectory: string
@@ -53,6 +57,10 @@ export const defaultSettings: StoredSettings = {
     namingRule: 'default',
     centerWindowOnTrigger: true,
     hideWindowOnTriggerWhenFocused: false
+  },
+  gitAutomation: {
+    autoCommitEnabled: false,
+    autoCommitIntervalMinutes: 30
   },
   editor: {
     enabledFeatures: ['heading', 'bold', 'italic', 'blockquote', 'bulletList', 'orderedList', 'taskList', 'codeBlock', 'link', 'image'],
@@ -161,6 +169,23 @@ export function sanitizeQuickCreateHideWindowOnTriggerWhenFocused(value: boolean
   return typeof value === 'boolean' ? value : defaultSettings.quickCreate.hideWindowOnTriggerWhenFocused
 }
 
+export function sanitizeGitAutoCommitEnabled(value: boolean | null | undefined): boolean {
+  return typeof value === 'boolean' ? value : defaultSettings.gitAutomation.autoCommitEnabled
+}
+
+export function sanitizeGitAutoCommitIntervalMinutes(value: number | null | undefined): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return defaultSettings.gitAutomation.autoCommitIntervalMinutes
+  }
+
+  const normalized = Math.round(value)
+  if (normalized < 1 || normalized > 1440) {
+    return defaultSettings.gitAutomation.autoCommitIntervalMinutes
+  }
+
+  return normalized
+}
+
 const editorFeatureKeys = new Set(defaultSettings.editor.enabledFeatures)
 
 export function sanitizeEditorEnabledFeatures(
@@ -233,6 +258,10 @@ export async function readSettings(): Promise<StoredSettings> {
       ...defaultSettings.quickCreate,
       ...(parsed.quickCreate ?? {})
     }
+    const parsedGitAutomation = {
+      ...defaultSettings.gitAutomation,
+      ...(parsed.gitAutomation ?? {})
+    }
     const parsedEditor = {
       ...defaultSettings.editor,
       ...(parsed.editor ?? {})
@@ -258,6 +287,10 @@ export async function readSettings(): Promise<StoredSettings> {
         hideWindowOnTriggerWhenFocused: sanitizeQuickCreateHideWindowOnTriggerWhenFocused(
           parsedQuickCreate.hideWindowOnTriggerWhenFocused,
         )
+      },
+      gitAutomation: {
+        autoCommitEnabled: sanitizeGitAutoCommitEnabled(parsedGitAutomation.autoCommitEnabled),
+        autoCommitIntervalMinutes: sanitizeGitAutoCommitIntervalMinutes(parsedGitAutomation.autoCommitIntervalMinutes)
       },
       editor: {
         enabledFeatures: sanitizeEditorEnabledFeatures(parsedEditor.enabledFeatures),

@@ -9,6 +9,7 @@ import EntityNameDialog from '@/components/notes/entity-name-dialog.vue'
 import AppearanceSettingsSection from '@/components/settings/appearance-settings-section.vue'
 import AutomationSettingsSection from '@/components/settings/automation-settings-section.vue'
 import GeneralSettingsSection from '@/components/settings/general-settings-section.vue'
+import GitSettingsSection from '@/components/settings/git-settings-section.vue'
 import { usePanelResize } from '@/composables/use-panel-resize'
 import {
   resolveAppearanceBackgroundColor,
@@ -18,13 +19,13 @@ import {
 } from '@/state/note-style'
 import { useEditorSettingsStore } from '@/state/editor-settings'
 import { useNotesStore } from '@/state/notes'
-import type { AppearanceDensity, AppearanceMode, AppearanceTheme, EditorFeatureKey } from '@/lib/types'
+import type { AppearanceDensity, AppearanceMode, AppearanceTheme, EditorFeatureKey, GitAutomationSettings } from '@/lib/types'
 
 const router = useRouter()
 const notesStore = useNotesStore()
 const noteStyleStore = useNoteStyleStore()
 const editorSettingsStore = useEditorSettingsStore()
-const { notes, selectedPath, notesDir, quickCreate, sidebarWidth } = storeToRefs(notesStore)
+const { notes, selectedPath, notesDir, quickCreate, gitAutomation, gitStatus, gitignoreDraft, sidebarWidth } = storeToRefs(notesStore)
 const { appearance } = storeToRefs(noteStyleStore)
 const { settings: editorSettings } = storeToRefs(editorSettingsStore)
 
@@ -32,6 +33,7 @@ const sections = [
   { key: 'general', label: '通用' },
   { key: 'appearance', label: '外观' },
   { key: 'automation', label: '快速创建' },
+  { key: 'git', label: 'Git' },
 ] as const
 const activeSectionKey = ref<(typeof sections)[number]['key']>('general')
 const editorImageDirectoryDialogOpen = ref(false)
@@ -125,6 +127,27 @@ function updateQuickCreateHideWindowOnTriggerWhenFocused(hideWindowOnTriggerWhen
   void notesStore.updateQuickCreateSettings({ ...quickCreate.value, hideWindowOnTriggerWhenFocused })
 }
 
+function updateGitAutomationEnabled(autoCommitEnabled: boolean) {
+  const nextGitAutomation: GitAutomationSettings = {
+    ...gitAutomation.value,
+    autoCommitEnabled,
+  }
+  void notesStore.updateGitAutomationSettings(nextGitAutomation)
+}
+
+function updateGitAutomationInterval(autoCommitIntervalMinutes: number) {
+  const normalizedMinutes = Number.isFinite(autoCommitIntervalMinutes) ? autoCommitIntervalMinutes : 30
+  const nextGitAutomation: GitAutomationSettings = {
+    ...gitAutomation.value,
+    autoCommitIntervalMinutes: normalizedMinutes,
+  }
+  void notesStore.updateGitAutomationSettings(nextGitAutomation)
+}
+
+function updateGitignoreDraft(content: string) {
+  gitignoreDraft.value = content
+}
+
 function toggleEditorFeature(feature: EditorFeatureKey, enabled: boolean) {
   void editorSettingsStore.setFeatureEnabled(feature, enabled)
 }
@@ -168,6 +191,15 @@ watch(
     } catch {
       resolvedImageDirectoryPath.value = null
     }
+  },
+  { immediate: true },
+)
+
+watch(
+  () => activeSectionKey.value,
+  (sectionKey) => {
+    if (sectionKey !== 'git') return
+    void notesStore.refreshGitState()
   },
   { immediate: true },
 )
@@ -253,7 +285,15 @@ watch(
             <p class="text-ui-xs uppercase tracking-[0.24em] text-[var(--muted-foreground)]">Quick Create</p>
             <h1 class="mt-[var(--space-2)] text-3xl font-semibold tracking-tight">快速创建设置</h1>
             <p class="text-ui-md mt-[var(--space-3)] max-w-2xl leading-7 text-[var(--muted-foreground)]">
-              配置快捷唤起后的默认行为。
+              配置快捷（Alt+A）唤起后的默认行为。
+            </p>
+          </template>
+
+          <template v-else-if="activeSection.key === 'git'">
+            <p class="text-ui-xs uppercase tracking-[0.24em] text-[var(--muted-foreground)]">Git</p>
+            <h1 class="mt-[var(--space-2)] text-3xl font-semibold tracking-tight">Git 设置</h1>
+            <p class="text-ui-md mt-[var(--space-3)] max-w-2xl leading-7 text-[var(--muted-foreground)]">
+              管理笔记仓库初始化、自动提交和忽略规则。
             </p>
           </template>
 
@@ -287,6 +327,19 @@ watch(
           @update-quick-create-naming-rule="updateQuickCreateNamingRule"
           @update-quick-create-center-window-on-trigger="updateQuickCreateCenterWindowOnTrigger"
           @update-quick-create-hide-window-on-trigger-when-focused="updateQuickCreateHideWindowOnTriggerWhenFocused"
+        />
+
+        <GitSettingsSection
+          v-else-if="activeSection.key === 'git'"
+          :notes-dir="notesDir"
+          :git-status="gitStatus"
+          :git-automation="gitAutomation"
+          :gitignore-draft="gitignoreDraft"
+          @init-git-repo="notesStore.initGitRepo"
+          @update-git-automation-enabled="updateGitAutomationEnabled"
+          @update-git-automation-interval="updateGitAutomationInterval"
+          @update-gitignore-draft="updateGitignoreDraft"
+          @commit-git-now="notesStore.commitGitNow"
         />
 
         <AppearanceSettingsSection

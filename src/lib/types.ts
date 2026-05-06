@@ -23,6 +23,21 @@ export type QuickCreateSettings = {
   hideWindowOnTriggerWhenFocused: boolean
 }
 
+export type GitAutomationSettings = {
+  autoCommitEnabled: boolean
+  autoCommitIntervalMinutes: number
+}
+
+export type GitStatus = {
+  isGitAvailable: boolean
+  isRepoInitialized: boolean
+  hasGitignore: boolean
+  hasPendingChanges: boolean
+  repoPath: string | null
+  lastCommitAt: string | null
+  nextAutoCommitAt: string | null
+}
+
 export type EditorFeatureKey =
   | 'heading'
   | 'bold'
@@ -88,6 +103,7 @@ export type AppSettings = {
   folders: FolderListItem[]
   appearance: AppearanceSettings
   quickCreate: QuickCreateSettings
+  gitAutomation: GitAutomationSettings
   editor: EditorSettings
   pinnedNotePaths: string[]
 }

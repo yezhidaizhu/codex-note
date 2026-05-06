@@ -6,6 +6,8 @@ import type {
   CleanupUnusedImagesResult,
   CopyTextResult,
   EditorSettings,
+  GitAutomationSettings,
+  GitStatus,
   MoveFolderResult,
   NotePayload,
   NoteTreeResult,
@@ -48,6 +50,12 @@ declare global {
       writeClipboardText: (value: string) => Promise<CopyTextResult>
       updateAppearance: (appearance: AppearanceSettings) => Promise<AppearanceSettings>
       updateQuickCreateSettings: (quickCreate: QuickCreateSettings) => Promise<QuickCreateSettings>
+      getGitStatus: () => Promise<GitStatus>
+      initGitRepo: () => Promise<GitStatus>
+      readWorkspaceTextFile: (path: string) => Promise<{ content: string; exists: boolean }>
+      writeWorkspaceTextFile: (payload: { path: string; content: string }) => Promise<void>
+      commitGitNow: () => Promise<GitStatus>
+      updateGitAutomationSettings: (gitAutomation: GitAutomationSettings) => Promise<GitAutomationSettings>
       updateEditorSettings: (editor: EditorSettings) => Promise<EditorSettings>
       updatePinnedNotePaths: (paths: string[]) => Promise<string[]>
       setSidebarCollapsed: (collapsed: boolean) => Promise<void>
