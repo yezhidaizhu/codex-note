@@ -15,7 +15,7 @@ export type StoredSettings = {
     backgroundOpacity: number | null
   }
   quickCreate: {
-    mode: 'create' | 'open'
+    mode: 'create' | 'open' | 'toggle'
     directory: string
     targetPath: string
     writeClipboardOnCreate: boolean
@@ -34,8 +34,11 @@ export type StoredSettings = {
   pinnedNotePaths: string[]
 }
 
-type LegacyStoredSettings = Omit<StoredSettings, 'windowBounds'> & {
+type LegacyStoredSettings = Omit<StoredSettings, 'windowBounds' | 'quickCreate'> & {
   windowBounds?: unknown
+  quickCreate?: Partial<StoredSettings['quickCreate']> & {
+    revealWindowOnTrigger?: boolean
+  }
 }
 
 export const defaultSettings: StoredSettings = {
@@ -127,8 +130,12 @@ export function sanitizeQuickCreateDirectory(value: string | null | undefined): 
   return `/${normalizedSegments.join('/')}`
 }
 
-export function sanitizeQuickCreateMode(value: 'create' | 'open' | null | undefined): 'create' | 'open' {
-  return value === 'open' ? 'open' : 'create'
+export function sanitizeQuickCreateMode(value: 'create' | 'open' | 'toggle' | null | undefined): 'create' | 'open' | 'toggle' {
+  if (value === 'open' || value === 'toggle') {
+    return value
+  }
+
+  return 'create'
 }
 
 export function sanitizeQuickCreateTargetPath(value: string | null | undefined): string {

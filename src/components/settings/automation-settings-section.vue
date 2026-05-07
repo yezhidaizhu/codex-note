@@ -2,14 +2,14 @@
 import { computed, ref, watch } from 'vue'
 import { Clipboard, FilePlus2, Keyboard, Link2, Sparkles } from 'lucide-vue-next'
 import Input from '@/components/ui/input.vue'
-import type { QuickCreateSettings } from '@/lib/types'
+import type { QuickCreateMode, QuickCreateSettings } from '@/lib/types'
 
 const props = defineProps<{
   quickCreate: QuickCreateSettings
 }>()
 
 const emit = defineEmits<{
-  (e: 'updateQuickCreateMode', mode: 'create' | 'open'): void
+  (e: 'updateQuickCreateMode', mode: QuickCreateMode): void
   (e: 'updateQuickCreateDirectory', directory: string): void
   (e: 'updateQuickCreateTargetPath', targetPath: string): void
   (e: 'updateQuickCreateWriteClipboardOnCreate', writeClipboardOnCreate: boolean): void
@@ -49,7 +49,7 @@ watch(
   { immediate: true },
 )
 
-function updateQuickCreateMode(mode: 'create' | 'open') {
+function updateQuickCreateMode(mode: QuickCreateMode) {
   emit('updateQuickCreateMode', mode)
 }
 
@@ -121,7 +121,7 @@ function onQuickCreateTargetPathKeydown(event: KeyboardEvent) {
             <Keyboard class="h-4 w-4 text-[var(--muted-foreground)]" />
             <p class="text-ui-sm font-medium">默认动作</p>
           </div>
-          <p class="text-ui-xs mt-1 text-[var(--muted-foreground)]">快捷唤起后执行“新建”或“打开”。</p>
+          <p class="text-ui-xs mt-1 text-[var(--muted-foreground)]">快捷唤起后可执行“新建”“打开”或仅切换展示窗口。</p>
         </div>
         <div class="min-w-0">
           <div class="flex w-full lg:justify-end">
@@ -139,6 +139,13 @@ function onQuickCreateTargetPathKeydown(event: KeyboardEvent) {
                 @click="updateQuickCreateMode('open')"
               >
                 打开指定文件
+              </button>
+              <button
+                type="button"
+                :class="compactOptionClass(props.quickCreate.mode === 'toggle')"
+                @click="updateQuickCreateMode('toggle')"
+              >
+                切换展示窗口
               </button>
             </div>
           </div>
@@ -207,7 +214,7 @@ function onQuickCreateTargetPathKeydown(event: KeyboardEvent) {
       </div>
 
       <div
-        v-else
+        v-else-if="props.quickCreate.mode === 'open'"
         class="grid items-center gap-[var(--space-3)] border-t border-[color-mix(in_srgb,var(--border)_72%,transparent)] py-[calc(var(--settings-panel-pad)-0.05rem)] lg:grid-cols-[136px_minmax(0,1fr)] lg:gap-[var(--space-4)]"
       >
         <div class="min-w-0">

@@ -4,6 +4,8 @@ export type AppearanceMode = 'system' | 'dark' | 'light'
 
 export type AppearanceDensity = 'comfortable' | 'compact'
 
+export type QuickCreateMode = 'create' | 'open' | 'toggle'
+
 export type AppearanceSettings = {
   mode: AppearanceMode
   theme: AppearanceTheme
@@ -14,7 +16,7 @@ export type AppearanceSettings = {
 }
 
 export type QuickCreateSettings = {
-  mode: 'create' | 'open'
+  mode: QuickCreateMode
   directory: string
   targetPath: string
   writeClipboardOnCreate: boolean

@@ -353,7 +353,8 @@ watch(
       <textarea
         ref="textareaRef"
         :value="draftContent"
-        class="text-ui-sm h-full min-h-full w-full resize-none border-none bg-transparent px-[var(--editor-pad-x)] py-0 leading-[1.56] text-[var(--foreground)] outline-none placeholder:text-[var(--muted-foreground)]"
+        class="text-ui-sm h-full min-h-full w-full resize-none border-none bg-transparent px-[var(--editor-pad-x)] py-0 text-[var(--foreground)] outline-none placeholder:text-[var(--muted-foreground)]"
+        style="line-height: 1.5;"
         placeholder="开始写点什么"
         spellcheck="false"
         @compositionstart="handleCompositionstart"

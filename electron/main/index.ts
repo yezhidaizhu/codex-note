@@ -1,6 +1,6 @@
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
-import { app, BrowserWindow, globalShortcut, Menu, nativeImage, nativeTheme, net, protocol, screen, Tray } from 'electron'
+import { app, BrowserWindow, clipboard, dialog, globalShortcut, Menu, nativeImage, nativeTheme, net, protocol, screen, Tray } from 'electron'
 import { MAIN_CONFIG } from './config'
 import {
   clampWindowFrameToWorkArea,
@@ -151,6 +151,21 @@ function restoreWindow(options: { center?: boolean } = {}): void {
   mainWindow.focus()
 }
 
+function toggleMainWindow(options: { center?: boolean } = {}): void {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    restoreWindow(options)
+    return
+  }
+
+  const isVisible = mainWindow.isVisible() && !mainWindow.isMinimized()
+  if (isVisible) {
+    mainWindow.hide()
+    return
+  }
+
+  restoreWindow(options)
+}
+
 function resolveQuickCreateParentPath(directory: string): string | null {
   const normalizedSegments = directory
     .replace(/\\/g, '/')
@@ -234,19 +249,27 @@ async function showQuickCreateError(message: string): Promise<void> {
 async function handleQuickCreateShortcut(): Promise<void> {
   try {
     const [settings] = await Promise.all([readSettings(), notesService.getNotesDirOrThrow()])
+    const currentWindow = mainWindow
     const isWindowFocused =
-      Boolean(mainWindow) &&
-      !mainWindow.isDestroyed() &&
-      mainWindow.isVisible() &&
-      !mainWindow.isMinimized() &&
-      mainWindow.isFocused()
+      currentWindow !== null &&
+      !currentWindow.isDestroyed() &&
+      currentWindow.isVisible() &&
+      !currentWindow.isMinimized() &&
+      currentWindow.isFocused()
+
+    if (settings.quickCreate.mode === 'toggle') {
+      toggleMainWindow({ center: settings.quickCreate.centerWindowOnTrigger })
+      return
+    }
 
     if (settings.quickCreate.hideWindowOnTriggerWhenFocused && isWindowFocused) {
-      mainWindow?.hide()
+      currentWindow?.hide()
       return
     }
 
     const content = settings.quickCreate.writeClipboardOnCreate ? clipboard.readText() : ''
+    restoreWindow({ center: settings.quickCreate.centerWindowOnTrigger })
+
     const payload =
       settings.quickCreate.mode === 'open'
         ? { action: 'open' as const, path: resolveQuickCreateTargetPath(settings.quickCreate.targetPath) }
@@ -261,7 +284,6 @@ async function handleQuickCreateShortcut(): Promise<void> {
             })
           }
 
-    restoreWindow({ center: settings.quickCreate.centerWindowOnTrigger })
     emitQuickCreateTriggered(payload)
   } catch (error) {
     await showQuickCreateError(error instanceof Error ? error.message : '创建笔记时出现未知错误。')

@@ -227,7 +227,7 @@ onBeforeUnmount(() => {
         <div class="min-w-0">
           <Textarea
             :value="props.gitignoreDraft"
-            class="min-h-[180px] px-3 py-2 font-mono text-ui-xs leading-6 lg:max-w-[520px]"
+            class="min-h-[180px] px-3 py-2 font-mono text-ui-xs leading-7 lg:max-w-[520px]"
             placeholder=".DS_Store"
             @input="emit('updateGitignoreDraft', ($event.target as HTMLTextAreaElement).value)"
           />

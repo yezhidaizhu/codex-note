@@ -2,7 +2,7 @@ import type { BrowserWindow } from 'electron'
 import type { createGitService } from '../git/service'
 import type { createNotesService } from '../notes'
 import type { createWorkspaceFileService } from '../file/service'
-import type { computeDefaultWindowBounds, type WindowBounds, type WindowSizeMode } from '../window'
+import type { computeDefaultWindowBounds, WindowBounds, WindowSizeMode } from '../window'
 import type {
   readSettings,
   sanitizeBackgroundColor,

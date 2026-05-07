@@ -19,7 +19,7 @@ import {
 } from '@/state/note-style'
 import { useEditorSettingsStore } from '@/state/editor-settings'
 import { useNotesStore } from '@/state/notes'
-import type { AppearanceDensity, AppearanceMode, AppearanceTheme, EditorFeatureKey, GitAutomationSettings } from '@/lib/types'
+import type { AppearanceDensity, AppearanceMode, AppearanceTheme, EditorFeatureKey, GitAutomationSettings, QuickCreateMode } from '@/lib/types'
 
 const router = useRouter()
 const notesStore = useNotesStore()
@@ -103,7 +103,7 @@ function updateQuickCreateDirectory(directory: string) {
   void notesStore.updateQuickCreateSettings({ ...quickCreate.value, directory })
 }
 
-function updateQuickCreateMode(mode: 'create' | 'open') {
+function updateQuickCreateMode(mode: QuickCreateMode) {
   void notesStore.updateQuickCreateSettings({ ...quickCreate.value, mode })
 }
 
